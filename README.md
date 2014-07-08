@@ -20,3 +20,11 @@ Would output something like:
 ERROR | Could not connect to server. | url='http://timehop.com/', error='timed out'
 INFO  | Something happened.
 ```
+
+## Build
+
+![](https://api.travis-ci.org/timehop/golog.svg)
+
+## License
+
+MIT
