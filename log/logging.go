@@ -11,10 +11,10 @@ import (
 
 const (
 	LevelFatal = iota
-	LevelError = iota
-	LevelWarn  = iota
-	LevelInfo  = iota
-	LevelDebug = iota
+	LevelError
+	LevelWarn
+	LevelInfo
+	LevelDebug
 )
 
 var Level = func() int {
