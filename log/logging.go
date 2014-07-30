@@ -32,7 +32,11 @@ var Level = func() int {
 	}
 }()
 
-var DefaultLogger = New()
+var (
+	DefaultLogger = New()
+
+	defaultOutput io.Writer = os.Stdout
+)
 
 func New() *Logger {
 	return NewWithID("")
@@ -41,8 +45,8 @@ func New() *Logger {
 func NewWithID(id string) *Logger {
 	return &Logger{
 		ID:    id,
-		Level: Level,                     // grab default
-		l:     log.New(os.Stdout, "", 0), // don't touch the default logger on 'log' package
+		Level: Level,                         // grab default
+		l:     log.New(defaultOutput, "", 0), // don't touch the default logger on 'log' package
 	}
 }
 
@@ -95,7 +99,14 @@ func Debug(id, description string, keysAndValues ...interface{}) {
 }
 
 // SetOutput sets the output destination for the default logger.
+//
+// All new logger instances created after this call will use the provided
+// io.Writer as destination for their output.
+//
+// If you specifically want to change the output of DefaultLogger and not
+// affect new Logger instance creation, use log.DefaultLogger.SetOutput()
 func SetOutput(w io.Writer) {
+	defaultOutput = w
 	DefaultLogger.SetOutput(w)
 }
 
