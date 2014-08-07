@@ -55,6 +55,7 @@ func Fatal(id, description string, keysAndValues ...interface{}) {
 		return
 	}
 	logMessage(DefaultLogger.l, id, "FATAL", description, keysAndValues...)
+	os.Exit(1)
 }
 
 // Error outputs an error message with an optional list of key/value pairs.
