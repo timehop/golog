@@ -10,15 +10,15 @@ Example:
 ```go
 // import "github.com/timehop/golog/log"
 
-log.Error("Could not connect to server.", "url", url, "error", err.Error())
-log.Info("Something happened.")
+log.Error("MyLibrary", "Could not connect to server.", "url", url, "error", err.Error())
+log.Info("MyLibrary", "Something happened.")
 ```
 
 Would output something like:
 
 ```
-ERROR | Could not connect to server. | url='http://timehop.com/', error='timed out'
-INFO  | Something happened.
+ERROR | MyLibrary | Could not connect to server. | url='http://timehop.com/', error='timed out'
+INFO  | MyLibrary | Something happened.
 ```
 
 ## Build
