@@ -17,7 +17,7 @@ log.Info("MyLibrary", "Something happened.")
 Would output something like:
 
 ```
-ERROR | MyLibrary | Could not connect to server. | url='http://timehop.com/', error='timed out'
+ERROR | MyLibrary | Could not connect to server. | url='http://timehop.com/' error='timed out'
 INFO  | MyLibrary | Something happened.
 ```
 

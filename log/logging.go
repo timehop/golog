@@ -1,3 +1,34 @@
+// The MIT License (MIT)
+//
+// Copyright (c) 2014 timehop
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+// Package log provids a severity-based key/value logging replacement for Go's
+// standard logger.
+//
+// The output is a simple and clean logging format that strikes the perfect
+// balance between being human readable and easy to write parsing tools for.
+//
+// Examples:
+//   ERROR | MyLibrary | Could not connect to server. | url='http://timehop.com/' error='timed out'
+//   INFO  | MyLibrary | Something happened.
 package log
 
 import (
@@ -38,10 +69,15 @@ var (
 	defaultOutput io.Writer = os.Stdout
 )
 
+// New creates a new logger instance.
 func New() *Logger {
 	return NewWithID("")
 }
 
+// NewWithID creates a new logger instance that will output use the supplied id
+// as prefix for all the log messages.
+// The format is:
+//   Level | Prefix | Message | key='value' key2=value2, ...
 func NewWithID(id string) *Logger {
 	return &Logger{
 		ID:    id,
@@ -50,6 +86,8 @@ func NewWithID(id string) *Logger {
 	}
 }
 
+// Fatal outputs a severe error message just before terminating the process.
+// Use judiciously.
 func Fatal(id, description string, keysAndValues ...interface{}) {
 	if Level < LevelFatal {
 		return
@@ -111,6 +149,11 @@ func SetOutput(w io.Writer) {
 	DefaultLogger.SetOutput(w)
 }
 
+// Logger represents a logger, through which output is generated.
+//
+// It holds an ID, the minimum severity level to generate output (all calls
+// with inferior severity will yield no effect) and wraps the underlying
+// logger, which is a standard lib's *log.Logger instance.
 type Logger struct {
 	ID    string
 	Level int
@@ -201,8 +244,8 @@ func logMessage(logger *log.Logger, id, severity, description string, args ...in
 	logger.Println(items...)
 }
 
-// expandKeyValuePairs converts a list of arguments into a string with
-// the format "k='v' foo='bar' bar=".
+// expandKeyValuePairs converts a list of arguments into a string with the
+// format "k='v' foo='bar' bar=".
 //
 // When the final value is missing, the format "bar=" is used.
 func expandKeyValuePairs(keyValuePairs []interface{}) string {
