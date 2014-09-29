@@ -63,7 +63,7 @@ var (
 	Level int
 	Flags int
 
-	DefaultLogger = New()
+	DefaultLogger *Logger
 
 	defaultPrefix string
 	defaultOutput io.Writer
@@ -86,6 +86,8 @@ func init() {
 	}
 
 	Flags, _ = strconv.Atoi(os.Getenv("LOG_FORMAT"))
+
+	DefaultLogger = New()
 }
 
 // Changes the global prefix for all log statements.
