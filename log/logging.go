@@ -88,6 +88,11 @@ func init() {
 	Flags, _ = strconv.Atoi(os.Getenv("LOG_FORMAT"))
 }
 
+// Changes the global prefix for all log statements.
+//
+// New logger instances created after this method is called will be affected.
+// Prefix is useful for multi-tail scenarios (tailing logs across multiple
+// machines, to help distinguish which is which.)
 func SetPrefix(prefix string) {
 	defaultPrefix = prefix
 	// Must recreate the default logger so it can pickup the prefix.
@@ -157,6 +162,7 @@ func SetOutput(w io.Writer) {
 	DefaultLogger.SetOutput(w)
 }
 
+// SetFlags changes the timestamp flags on the output of the default logger.
 func SetTimestampFlags(flags int) {
 	Flags = flags
 	DefaultLogger.SetTimestampFlags(flags)
@@ -249,7 +255,7 @@ func (s *Logger) SetOutput(w io.Writer) {
 	s.l = log.New(w, defaultPrefix, s.l.Flags())
 }
 
-// SetFlags changes the date
+// SetFlags changes the timestamp flags on the output of the logger.
 func (s *Logger) SetTimestampFlags(flags int) {
 	s.l.SetFlags(flags)
 }
