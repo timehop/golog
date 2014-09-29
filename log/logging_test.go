@@ -2,6 +2,8 @@ package log_test
 
 import (
 	"bytes"
+	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -91,6 +93,32 @@ var _ = Describe("Logging functions", func() {
 			log.Debug("", "Not all those who wander are lost.")
 
 			Expect(output.String()).To(BeEmpty())
+		})
+	})
+})
+
+var _ = Describe("Logger", func() {
+	Describe("#SetTimestampFlags", func() {
+		It("changes the output of the date", func() {
+			output := new(bytes.Buffer)
+			logger := log.NewWithID("bilbo")
+			logger.Level = log.LevelDebug
+			logger.SetTimestampFlags(log.FlagsDate)
+			logger.SetOutput(output)
+
+			message := "Not all those who wander are lost."
+			logger.Debug(message)
+			out := output.String()
+			Expect(out).To(ContainSubstring("DEBUG | bilbo | " + message))
+			Expect(strings.HasPrefix(out, time.Now().Format("2006/01/02"))).To(BeTrue())
+
+			// And now changing the flags...
+			output = new(bytes.Buffer)
+			logger.SetTimestampFlags(log.FlagsNone)
+			logger.SetOutput(output)
+			logger.Debug(message)
+			out = output.String()
+			Expect(strings.HasPrefix(out, "DEBUG | bilbo | "+message)).To(BeTrue())
 		})
 	})
 })

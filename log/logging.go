@@ -37,6 +37,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -48,42 +49,49 @@ const (
 	LevelDebug
 )
 
-var Level = func() int {
-	switch os.Getenv("LOG_LEVEL") {
-	case "FATAL":
-		return LevelFatal
-	case "ERROR":
-		return LevelError
-	case "WARN":
-		return LevelWarn
-	case "DEBUG":
-		return LevelDebug
-	default:
-		return LevelInfo
-	}
-}()
-
-var (
-	DefaultLogger = New()
-
-	defaultOutput io.Writer = os.Stdout
+const (
+	FlagsNone          = 0
+	FlagsDate          = log.Ldate
+	FlagsTime          = log.Ltime
+	FlagsPrecisionTime = log.Lmicroseconds
+	FlagsLongFile      = log.Llongfile
+	FlagsShortFile     = log.Lshortfile
+	FlagsDefault       = FlagsNone
 )
 
-// New creates a new logger instance.
-func New() *Logger {
-	return NewWithID("")
+var (
+	Level int
+	Flags int
+
+	DefaultLogger = New()
+
+	defaultPrefix string
+	defaultOutput io.Writer
+)
+
+func init() {
+	defaultPrefix = os.Getenv("LOG_PREFIX")
+	defaultOutput = os.Stdout
+
+	Level = LevelInfo
+	switch os.Getenv("LOG_LEVEL") {
+	case "FATAL":
+		Level = LevelFatal
+	case "ERROR":
+		Level = LevelError
+	case "WARN":
+		Level = LevelWarn
+	case "DEBUG":
+		Level = LevelDebug
+	}
+
+	Flags, _ = strconv.Atoi(os.Getenv("LOG_FORMAT"))
 }
 
-// NewWithID creates a new logger instance that will output use the supplied id
-// as prefix for all the log messages.
-// The format is:
-//   Level | Prefix | Message | key='value' key2=value2, ...
-func NewWithID(id string) *Logger {
-	return &Logger{
-		ID:    id,
-		Level: Level,                         // grab default
-		l:     log.New(defaultOutput, "", 0), // don't touch the default logger on 'log' package
-	}
+func SetPrefix(prefix string) {
+	defaultPrefix = prefix
+	// Must recreate the default logger so it can pickup the prefix.
+	DefaultLogger = New()
 }
 
 // Fatal outputs a severe error message just before terminating the process.
@@ -147,6 +155,29 @@ func Debug(id, description string, keysAndValues ...interface{}) {
 func SetOutput(w io.Writer) {
 	defaultOutput = w
 	DefaultLogger.SetOutput(w)
+}
+
+func SetTimestampFlags(flags int) {
+	Flags = flags
+	DefaultLogger.SetTimestampFlags(flags)
+}
+
+// New creates a new logger instance.
+func New() *Logger {
+	return NewWithID("")
+}
+
+// NewWithID creates a new logger instance that will output use the supplied id
+// as prefix for all the log messages.
+// The format is:
+//   Level | Prefix | Message | key='value' key2=value2, ...
+func NewWithID(id string) *Logger {
+	return &Logger{
+		ID:    id,
+		Level: Level,
+		// don't touch the default logger on 'log' package
+		l: log.New(defaultOutput, defaultPrefix, Flags),
+	}
 }
 
 // Logger represents a logger, through which output is generated.
@@ -215,7 +246,12 @@ func (s *Logger) Debug(description string, keysAndValues ...interface{}) {
 //
 // Useful to change where the log stream ends up being written to.
 func (s *Logger) SetOutput(w io.Writer) {
-	s.l = log.New(w, "", 0)
+	s.l = log.New(w, defaultPrefix, s.l.Flags())
+}
+
+// SetFlags changes the date
+func (s *Logger) SetTimestampFlags(flags int) {
+	s.l.SetFlags(flags)
 }
 
 // logMessage writes a formatted message to the default logger.
