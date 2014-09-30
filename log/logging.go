@@ -268,7 +268,11 @@ func (s *Logger) SetTimestampFlags(flags int) {
 // with key/value pairs being optional, depending on whether args are provided
 func logMessage(logger *log.Logger, id, severity, description string, args ...interface{}) {
 	// A full log statement is <id> | <severity> | <description> | <keys and values>
-	items := make([]interface{}, 0, 7)
+	items := make([]interface{}, 0, 8)
+	if logger.Flags() > FlagsNone {
+		items = append(items, "|")
+	}
+
 	items = append(items, severity)
 	items = append(items, "|")
 
