@@ -47,6 +47,7 @@ const (
 	LevelWarn
 	LevelInfo
 	LevelDebug
+	LevelTrace
 )
 
 const (
@@ -83,6 +84,8 @@ func init() {
 		Level = LevelWarn
 	case "DEBUG":
 		Level = LevelDebug
+	case "TRACE":
+		Level = LevelTrace
 	}
 
 	Flags, _ = strconv.Atoi(os.Getenv("LOG_FORMAT"))
@@ -150,6 +153,17 @@ func Debug(id, description string, keysAndValues ...interface{}) {
 		return
 	}
 	logMessage(DefaultLogger.l, id, "DEBUG", description, keysAndValues...)
+}
+
+// Trace outputs an info message with an optional list of key/value pairs.
+//
+// If LogLevel is set below LevelTrace, calling this method will yield no
+// side effects.
+func Trace(id, description string, keysAndValues ...interface{}) {
+	if Level < LevelTrace {
+		return
+	}
+	logMessage(DefaultLogger.l, id, "TRACE", description, keysAndValues...)
 }
 
 // SetOutput sets the output destination for the default logger.
@@ -248,6 +262,17 @@ func (s *Logger) Debug(description string, keysAndValues ...interface{}) {
 		return
 	}
 	logMessage(s.l, s.ID, "DEBUG", description, keysAndValues...)
+}
+
+// Trace outputs an info message with an optional list of key/value pairs.
+//
+// If LogLevel is set below LevelTrace, calling this method will yield no
+// side effects.
+func (s *Logger) Trace(description string, keysAndValues ...interface{}) {
+	if s.Level < LevelTrace {
+		return
+	}
+	logMessage(s.l, s.ID, "TRACE", description, keysAndValues...)
 }
 
 // SetOutput sets the output destination for the logger.
