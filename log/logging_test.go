@@ -15,7 +15,7 @@ var _ = Describe("Logging functions", func() {
 
 	BeforeEach(func() {
 		output = new(bytes.Buffer)
-		log.Level = log.LevelDebug
+		log.Level = log.LevelTrace
 		log.SetOutput(output)
 	})
 
@@ -91,6 +91,21 @@ var _ = Describe("Logging functions", func() {
 		It("should not output anything if log level is lower than LevelDebug", func() {
 			log.Level = log.LevelInfo
 			log.Debug("", "Not all those who wander are lost.")
+
+			Expect(output.String()).To(BeEmpty())
+		})
+	})
+
+	Describe(".Trace", func() {
+		It("should print a formatted message with TRACE prefix", func() {
+			log.Trace("", "Not all those who wander are lost.")
+
+			Expect(output.String()).To(Equal("TRACE | Not all those who wander are lost.\n"))
+		})
+
+		It("should not output anything if log level is lower than LevelTrace", func() {
+			log.Level = log.LevelInfo
+			log.Trace("", "Not all those who wander are lost.")
 
 			Expect(output.String()).To(BeEmpty())
 		})
