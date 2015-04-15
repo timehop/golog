@@ -57,7 +57,7 @@ const (
 	FlagsPrecisionTime = log.Lmicroseconds
 	FlagsLongFile      = log.Llongfile
 	FlagsShortFile     = log.Lshortfile
-	FlagsDefault       = FlagsNone
+	FlagsDefault       = log.LstdFlags
 )
 
 var (
@@ -88,7 +88,11 @@ func init() {
 		Level = LevelTrace
 	}
 
-	Flags, _ = strconv.Atoi(os.Getenv("LOG_FORMAT"))
+	var err error
+	Flags, err = strconv.Atoi(os.Getenv("LOG_FORMAT"))
+	if err != nil {
+		Flags = FlagsDefault
+	}
 
 	DefaultLogger = New()
 }

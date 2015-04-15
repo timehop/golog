@@ -16,6 +16,7 @@ var _ = Describe("Logging functions", func() {
 	BeforeEach(func() {
 		output = new(bytes.Buffer)
 		log.Level = log.LevelTrace
+		log.SetTimestampFlags(log.FlagsNone)
 		log.SetOutput(output)
 	})
 
