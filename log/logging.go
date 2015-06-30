@@ -52,6 +52,17 @@ const (
 	LevelTrace
 )
 
+type LogLevelName string
+
+const (
+	LevelFatalName LogLevelName = "FATAL"
+	LevelErrorName              = "ERROR"
+	LevelWarnName               = "WARN"
+	LevelInfoName               = "INFO"
+	LevelDebugName              = "DEBUG"
+	LevelTraceName              = "TRACE"
+)
+
 const (
 	FlagsNone          = 0
 	FlagsDate          = log.Ldate
@@ -116,11 +127,7 @@ func Fatal(id, description string, keysAndValues ...interface{}) {
 	if Level < LevelFatal {
 		return
 	}
-	if DefaultLogger.format == JsonFormat {
-		logMessageInJson(DefaultLogger.l, id, "FATAL", description, nil, keysAndValues...)
-	} else {
-		logMessage(DefaultLogger.l, id, "FATAL", description, nil, keysAndValues...)
-	}
+	DefaultLogger.formatter.logMessage(DefaultLogger.l, id, LevelFatalName, description, nil, keysAndValues...)
 	os.Exit(1)
 }
 
@@ -129,11 +136,7 @@ func Error(id, description string, keysAndValues ...interface{}) {
 	if Level < LevelError {
 		return
 	}
-	if DefaultLogger.format == JsonFormat {
-		logMessageInJson(DefaultLogger.l, id, "ERROR", description, nil, keysAndValues...)
-	} else {
-		logMessage(DefaultLogger.l, id, "ERROR", description, nil, keysAndValues...)
-	}
+	DefaultLogger.formatter.logMessage(DefaultLogger.l, id, LevelErrorName, description, nil, keysAndValues...)
 }
 
 // Warn outputs a warning message with an optional list of key/value pairs.
@@ -144,11 +147,7 @@ func Warn(id, description string, keysAndValues ...interface{}) {
 	if Level < LevelWarn {
 		return
 	}
-	if DefaultLogger.format == JsonFormat {
-		logMessageInJson(DefaultLogger.l, id, "WARN", description, nil, keysAndValues...)
-	} else {
-		logMessage(DefaultLogger.l, id, "WARN ", description, nil, keysAndValues...)
-	}
+	DefaultLogger.formatter.logMessage(DefaultLogger.l, id, LevelWarnName, description, nil, keysAndValues...)
 }
 
 // Info outputs an info message with an optional list of key/value pairs.
@@ -159,11 +158,7 @@ func Info(id, description string, keysAndValues ...interface{}) {
 	if Level < LevelInfo {
 		return
 	}
-	if DefaultLogger.format == JsonFormat {
-		logMessageInJson(DefaultLogger.l, id, "INFO", description, nil, keysAndValues...)
-	} else {
-		logMessage(DefaultLogger.l, id, "INFO ", description, nil, keysAndValues...)
-	}
+	DefaultLogger.formatter.logMessage(DefaultLogger.l, id, LevelInfoName, description, nil, keysAndValues...)
 }
 
 // Debug outputs an info message with an optional list of key/value pairs.
@@ -174,11 +169,7 @@ func Debug(id, description string, keysAndValues ...interface{}) {
 	if Level < LevelDebug {
 		return
 	}
-	if DefaultLogger.format == JsonFormat {
-		logMessageInJson(DefaultLogger.l, id, "DEBUG", description, nil, keysAndValues...)
-	} else {
-		logMessage(DefaultLogger.l, id, "DEBUG", description, nil, keysAndValues...)
-	}
+	DefaultLogger.formatter.logMessage(DefaultLogger.l, id, LevelDebugName, description, nil, keysAndValues...)
 }
 
 // Trace outputs an info message with an optional list of key/value pairs.
@@ -189,11 +180,7 @@ func Trace(id, description string, keysAndValues ...interface{}) {
 	if Level < LevelTrace {
 		return
 	}
-	if DefaultLogger.format == JsonFormat {
-		logMessageInJson(DefaultLogger.l, id, "TRACE", description, nil, keysAndValues...)
-	} else {
-		logMessage(DefaultLogger.l, id, "TRACE", description, nil, keysAndValues...)
-	}
+	DefaultLogger.formatter.logMessage(DefaultLogger.l, id, LevelTraceName, description, nil, keysAndValues...)
 }
 
 // SetOutput sets the output destination for the default logger.
@@ -233,11 +220,14 @@ func NewLogger(format LogFormat, id string, staticKeysAndValues ...interface{}) 
 func newLoggerStruct(format LogFormat, id string, staticKeysAndValues ...interface{}) *Logger {
 	var prefix string
 	var flags int
+	var formatter logFormatter
 	staticArgs := make(map[string]string, 0)
 
 	format = SanitizeFormat(format)
 
 	if format == JsonFormat {
+		formatter = jsonLogFormatter{}
+
 		// Don't mess up the json by letting logger print these:
 		prefix = ""
 		flags = 0
@@ -247,6 +237,7 @@ func newLoggerStruct(format LogFormat, id string, staticKeysAndValues ...interfa
 			staticArgs["prefix"] = defaultPrefix
 		}
 	} else {
+		formatter = plainTextLogFormatter{}
 		prefix = defaultPrefix
 		flags = Flags
 	}
@@ -272,7 +263,7 @@ func newLoggerStruct(format LogFormat, id string, staticKeysAndValues ...interfa
 		ID:    id,
 		Level: Level,
 
-		format:     format,
+		formatter:  formatter,
 		staticArgs: staticArgs,
 
 		// don't touch the default logger on 'log' package
@@ -333,7 +324,7 @@ type Logger struct {
 	ID    string
 	Level int
 
-	format     LogFormat
+	formatter  logFormatter
 	staticArgs map[string]string
 
 	l *log.Logger
@@ -344,11 +335,7 @@ func (s *Logger) Fatal(description string, keysAndValues ...interface{}) {
 	if s.Level < LevelFatal {
 		return
 	}
-	if s.format == JsonFormat {
-		logMessageInJson(s.l, s.ID, "FATAL", description, s.staticArgs, keysAndValues...)
-	} else {
-		logMessage(s.l, s.ID, "FATAL", description, s.staticArgs, keysAndValues...)
-	}
+	s.formatter.logMessage(s.l, s.ID, LevelFatalName, description, s.staticArgs, keysAndValues...)
 	os.Exit(1)
 }
 
@@ -357,11 +344,7 @@ func (s *Logger) Error(description string, keysAndValues ...interface{}) {
 	if s.Level < LevelError {
 		return
 	}
-	if s.format == JsonFormat {
-		logMessageInJson(s.l, s.ID, "ERROR", description, s.staticArgs, keysAndValues...)
-	} else {
-		logMessage(s.l, s.ID, "ERROR", description, s.staticArgs, keysAndValues...)
-	}
+	s.formatter.logMessage(s.l, s.ID, LevelErrorName, description, s.staticArgs, keysAndValues...)
 }
 
 // Warn outputs a warning message with an optional list of key/value pairs.
@@ -372,11 +355,7 @@ func (s *Logger) Warn(description string, keysAndValues ...interface{}) {
 	if s.Level < LevelWarn {
 		return
 	}
-	if s.format == JsonFormat {
-		logMessageInJson(s.l, s.ID, "WARN", description, s.staticArgs, keysAndValues...)
-	} else {
-		logMessage(s.l, s.ID, "WARN ", description, s.staticArgs, keysAndValues...)
-	}
+	s.formatter.logMessage(s.l, s.ID, LevelWarnName, description, s.staticArgs, keysAndValues...)
 }
 
 // Info outputs an info message with an optional list of key/value pairs.
@@ -387,11 +366,7 @@ func (s *Logger) Info(description string, keysAndValues ...interface{}) {
 	if s.Level < LevelInfo {
 		return
 	}
-	if s.format == JsonFormat {
-		logMessageInJson(s.l, s.ID, "INFO", description, s.staticArgs, keysAndValues...)
-	} else {
-		logMessage(s.l, s.ID, "INFO ", description, s.staticArgs, keysAndValues...)
-	}
+	s.formatter.logMessage(s.l, s.ID, LevelInfoName, description, s.staticArgs, keysAndValues...)
 }
 
 // Debug outputs an info message with an optional list of key/value pairs.
@@ -402,11 +377,7 @@ func (s *Logger) Debug(description string, keysAndValues ...interface{}) {
 	if s.Level < LevelDebug {
 		return
 	}
-	if s.format == JsonFormat {
-		logMessageInJson(s.l, s.ID, "DEBUG", description, s.staticArgs, keysAndValues...)
-	} else {
-		logMessage(s.l, s.ID, "DEBUG", description, s.staticArgs, keysAndValues...)
-	}
+	s.formatter.logMessage(s.l, s.ID, LevelDebugName, description, s.staticArgs, keysAndValues...)
 }
 
 // Trace outputs an info message with an optional list of key/value pairs.
@@ -417,11 +388,7 @@ func (s *Logger) Trace(description string, keysAndValues ...interface{}) {
 	if s.Level < LevelTrace {
 		return
 	}
-	if s.format == JsonFormat {
-		logMessageInJson(s.l, s.ID, "TRACE", description, s.staticArgs, keysAndValues...)
-	} else {
-		logMessage(s.l, s.ID, "TRACE", description, s.staticArgs, keysAndValues...)
-	}
+	s.formatter.logMessage(s.l, s.ID, LevelTraceName, description, s.staticArgs, keysAndValues...)
 }
 
 // SetOutput sets the output destination for the logger.
@@ -440,18 +407,31 @@ func (s *Logger) SetField(name string, value interface{}) {
 	s.staticArgs[name] = fmt.Sprintf("%v", value)
 }
 
+type logFormatter interface {
+	logMessage(
+		logger *log.Logger,
+		id string,
+		level LogLevelName,
+		description string,
+		staticFields map[string]string,
+		extraFieldKeysAndValues ...interface{},
+	)
+}
+
+type plainTextLogFormatter struct{}
+
 // logMessage writes a formatted message to the default logger.
 //
 // Format is "SEVERITY | Description [| k1='v1' k2='v2' k3=]"
 // with key/value pairs being optional, depending on whether args are provided
-func logMessage(logger *log.Logger, id, severity, description string, staticFields map[string]string, args ...interface{}) {
+func (lf plainTextLogFormatter) logMessage(logger *log.Logger, id string, level LogLevelName, description string, staticFields map[string]string, args ...interface{}) {
 	// A full log statement is <id> | <severity> | <description> | <keys and values>
 	items := make([]interface{}, 0, 8)
 	if logger.Flags() > FlagsNone {
 		items = append(items, "|")
 	}
 
-	items = append(items, severity)
+	items = append(items, level)
 	items = append(items, "|")
 
 	if len(id) > 0 {
@@ -499,15 +479,9 @@ func expandKeyValuePairs(keyValuePairs []interface{}) string {
 	return strings.Join(kvPairs, " ")
 }
 
-type jsonLogEntry struct {
-	Timestamp string            `json:"ts"`
-	Level     string            `json:"lvl"`
-	Name      string            `json:"name,omitempty"`
-	Message   string            `json:"msg,omitempty"`
-	Fields    map[string]string `json:"fields,omitempty"`
-}
+type jsonLogFormatter struct{}
 
-func logMessageInJson(logger *log.Logger, name, level, msg string, staticFields map[string]string, extraFields ...interface{}) {
+func (lf jsonLogFormatter) logMessage(logger *log.Logger, name string, level LogLevelName, msg string, staticFields map[string]string, extraFields ...interface{}) {
 	entry := jsonLogEntry{
 		Timestamp: time.Now().String(),
 		Level:     level,
@@ -543,4 +517,12 @@ func logMessageInJson(logger *log.Logger, name, level, msg string, staticFields 
 	} else {
 		logger.Println(string(encodedEntry))
 	}
+}
+
+type jsonLogEntry struct {
+	Timestamp string            `json:"ts"`
+	Level     LogLevelName      `json:"lvl"`
+	Name      string            `json:"name,omitempty"`
+	Message   string            `json:"msg,omitempty"`
+	Fields    map[string]string `json:"fields,omitempty"`
 }
