@@ -210,7 +210,7 @@ type LoggerInterface interface {
 	Trace(description string, keysAndValues ...interface{})
 	SetOutput(w io.Writer)
 	SetTimestampFlags(flags int)
-	SetField(name string, value interface{})
+	SetStaticField(name string, value interface{})
 }
 
 func NewLogger(format LogFormat, id string, staticKeysAndValues ...interface{}) LoggerInterface {
@@ -403,7 +403,8 @@ func (s *Logger) SetTimestampFlags(flags int) {
 	s.l.SetFlags(flags)
 }
 
-func (s *Logger) SetField(name string, value interface{}) {
+// Add a key/value field to every log line from this logger.
+func (s *Logger) SetStaticField(name string, value interface{}) {
 	s.staticArgs[name] = fmt.Sprintf("%v", value)
 }
 
