@@ -244,23 +244,14 @@ func newLoggerStruct(format LogFormat, id string, staticKeysAndValues ...interfa
 
 		// Instead put them into the staticArgs
 		if defaultPrefix != "" {
-			// Try to interpret at json, to get structured data.
-			var prefixData map[string]interface{}
-			if err := json.Unmarshal([]byte(defaultPrefix), &prefixData); err == nil {
-				for key, value := range prefixData {
-					staticArgs[key] = fmt.Sprintf("%v", value)
-				}
-			} else {
-				// Oh well, just use it as a single item.
-				staticArgs["prefix"] = defaultPrefix
-			}
+			staticArgs["prefix"] = defaultPrefix
 		}
 	} else {
 		prefix = defaultPrefix
 		flags = Flags
 	}
 
-	// Do this after handling json prefix, cuz individual loggers should override
+	// Do this after handling prefix, so that individual loggers can override
 	// external env variable.
 	currentKey := ""
 	for i, arg := range staticKeysAndValues {
