@@ -43,8 +43,10 @@ import (
 	"time"
 )
 
+type LogLevel int
+
 const (
-	LevelFatal = iota
+	LevelFatal LogLevel = iota
 	LevelError
 	LevelWarn
 	LevelInfo
@@ -74,7 +76,7 @@ const (
 )
 
 var (
-	Level int
+	Level LogLevel
 	Flags int
 
 	DefaultLogger *Logger
@@ -322,7 +324,7 @@ func NewWithID(id string) *Logger {
 // logger, which is a standard lib's *log.Logger instance.
 type Logger struct {
 	ID    string
-	Level int
+	level LogLevel
 
 	formatter  logFormatter
 	staticArgs map[string]string
