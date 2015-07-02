@@ -79,7 +79,7 @@ var (
 	Level LogLevel
 	Flags int
 
-	DefaultLogger *Logger
+	DefaultLogger Logger
 
 	defaultPrefix string
 	defaultOutput io.Writer
@@ -109,7 +109,7 @@ func init() {
 		Flags = FlagsDefault
 	}
 
-	DefaultLogger = New()
+	DefaultLogger = NewDefault()
 }
 
 // Changes the global prefix for all log statements.
@@ -120,7 +120,7 @@ func init() {
 func SetPrefix(prefix string) {
 	defaultPrefix = prefix
 	// Must recreate the default logger so it can pickup the prefix.
-	DefaultLogger = New()
+	DefaultLogger = NewDefault()
 }
 
 // Fatal outputs a severe error message just before terminating the process.
@@ -203,29 +203,42 @@ func SetTimestampFlags(flags int) {
 	DefaultLogger.SetTimestampFlags(flags)
 }
 
-type LoggerInterface interface {
+type Logger interface {
 	Fatal(description string, keysAndValues ...interface{})
 	Error(description string, keysAndValues ...interface{})
 	Warn(description string, keysAndValues ...interface{})
 	Info(description string, keysAndValues ...interface{})
 	Debug(description string, keysAndValues ...interface{})
 	Trace(description string, keysAndValues ...interface{})
+
+	SetLevel(level LogLevel)
 	SetOutput(w io.Writer)
 	SetTimestampFlags(flags int)
 	SetStaticField(name string, value interface{})
 }
 
-func NewLogger(format LogFormat, id string, staticKeysAndValues ...interface{}) LoggerInterface {
-	return newLoggerStruct(format, id, staticKeysAndValues...)
+// Logger config. Default/unset values for each attribute are safe.
+type Config struct {
+	Format LogFormat
+	ID     string
 }
 
-func newLoggerStruct(format LogFormat, id string, staticKeysAndValues ...interface{}) *Logger {
+type LogFormat string
+
+const (
+	DefaultFormat   LogFormat = "" // Use env variable, defaulting to PlainTextFormat
+	PlainTextFormat           = "text"
+	JsonFormat                = "json"
+)
+
+// New creates a new logger instance.
+func New(conf Config, staticKeysAndValues ...interface{}) Logger {
 	var prefix string
 	var flags int
 	var formatter logFormatter
 	staticArgs := make(map[string]string, 0)
 
-	format = SanitizeFormat(format)
+	format := SanitizeFormat(conf.Format)
 
 	if format == JsonFormat {
 		formatter = jsonLogFormatter{}
@@ -261,25 +274,24 @@ func newLoggerStruct(format LogFormat, id string, staticKeysAndValues ...interfa
 		staticArgs[currentKey] = ""
 	}
 
-	return &Logger{
-		ID:    id,
-		Level: Level,
+	return &logger{
+		id:    conf.ID,
+		level: Level,
 
 		formatter:  formatter,
 		staticArgs: staticArgs,
 
 		// don't touch the default logger on 'log' package
-		l: log.New(defaultOutput, prefix, flags),
+		// cache args to make a logger, in case it's changes with SetOutput()
+		prefix: prefix,
+		flags:  flags,
+		l:      log.New(defaultOutput, prefix, flags),
 	}
 }
 
-type LogFormat string
-
-const (
-	DefaultFormat   LogFormat = "" // Use env variable, defaulting to PlainTextFormat
-	PlainTextFormat           = "text"
-	JsonFormat                = "json"
-)
+func NewDefault() Logger {
+	return New(Config{})
+}
 
 func SanitizeFormat(format LogFormat) LogFormat {
 	if format == PlainTextFormat || format == JsonFormat {
@@ -297,33 +309,13 @@ func SanitizeFormat(format LogFormat) LogFormat {
 	return PlainTextFormat
 }
 
-// New creates a new logger instance.
-// DEPRECATED: use `NewLogger(...)` instead. That one returns an interface,
-// which allows the underlying data structure to change without breaking
-// clients.
-func New() *Logger {
-	return newLoggerStruct(DefaultFormat, "")
-}
-
-// NewWithID creates a new logger instance that will output use the supplied id
-// as prefix for all the log messages.
-// The format is:
-//   Level | Prefix | Message | key='value' key2=value2, ...
-//
-// DEPRECATED: use `NewLogger(...)` instead. That one returns an interface,
-// which allows the underlying data structure to change without breaking
-// clients.
-func NewWithID(id string) *Logger {
-	return newLoggerStruct(DefaultFormat, id)
-}
-
 // Logger represents a logger, through which output is generated.
 //
 // It holds an ID, the minimum severity level to generate output (all calls
 // with inferior severity will yield no effect) and wraps the underlying
 // logger, which is a standard lib's *log.Logger instance.
-type Logger struct {
-	ID    string
+type logger struct {
+	id    string
 	level LogLevel
 
 	formatter  logFormatter
@@ -333,8 +325,8 @@ type Logger struct {
 }
 
 // Fatal outputs an error message with an optional list of key/value pairs and exits
-func (s *Logger) Fatal(description string, keysAndValues ...interface{}) {
-	if s.Level < LevelFatal {
+func (s *logger) Fatal(description string, keysAndValues ...interface{}) {
+	if s.level < LevelFatal {
 		return
 	}
 	s.formatter.logMessage(s.l, s.ID, LevelFatalName, description, s.staticArgs, keysAndValues...)
@@ -342,8 +334,8 @@ func (s *Logger) Fatal(description string, keysAndValues ...interface{}) {
 }
 
 // Error outputs an error message with an optional list of key/value pairs.
-func (s *Logger) Error(description string, keysAndValues ...interface{}) {
-	if s.Level < LevelError {
+func (s *logger) Error(description string, keysAndValues ...interface{}) {
+	if s.level < LevelError {
 		return
 	}
 	s.formatter.logMessage(s.l, s.ID, LevelErrorName, description, s.staticArgs, keysAndValues...)
@@ -353,8 +345,8 @@ func (s *Logger) Error(description string, keysAndValues ...interface{}) {
 //
 // If LogLevel is set below LevelWarn, calling this method will yield no
 // side effects.
-func (s *Logger) Warn(description string, keysAndValues ...interface{}) {
-	if s.Level < LevelWarn {
+func (s *logger) Warn(description string, keysAndValues ...interface{}) {
+	if s.level < LevelWarn {
 		return
 	}
 	s.formatter.logMessage(s.l, s.ID, LevelWarnName, description, s.staticArgs, keysAndValues...)
@@ -364,8 +356,8 @@ func (s *Logger) Warn(description string, keysAndValues ...interface{}) {
 //
 // If LogLevel is set below LevelInfo, calling this method will yield no
 // side effects.
-func (s *Logger) Info(description string, keysAndValues ...interface{}) {
-	if s.Level < LevelInfo {
+func (s *logger) Info(description string, keysAndValues ...interface{}) {
+	if s.level < LevelInfo {
 		return
 	}
 	s.formatter.logMessage(s.l, s.ID, LevelInfoName, description, s.staticArgs, keysAndValues...)
@@ -375,8 +367,8 @@ func (s *Logger) Info(description string, keysAndValues ...interface{}) {
 //
 // If LogLevel is set below LevelDebug, calling this method will yield no
 // side effects.
-func (s *Logger) Debug(description string, keysAndValues ...interface{}) {
-	if s.Level < LevelDebug {
+func (s *logger) Debug(description string, keysAndValues ...interface{}) {
+	if s.level < LevelDebug {
 		return
 	}
 	s.formatter.logMessage(s.l, s.ID, LevelDebugName, description, s.staticArgs, keysAndValues...)
@@ -386,27 +378,31 @@ func (s *Logger) Debug(description string, keysAndValues ...interface{}) {
 //
 // If LogLevel is set below LevelTrace, calling this method will yield no
 // side effects.
-func (s *Logger) Trace(description string, keysAndValues ...interface{}) {
-	if s.Level < LevelTrace {
+func (s *logger) Trace(description string, keysAndValues ...interface{}) {
+	if s.level < LevelTrace {
 		return
 	}
 	s.formatter.logMessage(s.l, s.ID, LevelTraceName, description, s.staticArgs, keysAndValues...)
+
+func (s *logger) SetLevel(level LogLevel) {
+	s.level = level
 }
 
 // SetOutput sets the output destination for the logger.
 //
 // Useful to change where the log stream ends up being written to.
-func (s *Logger) SetOutput(w io.Writer) {
-	s.l = log.New(w, defaultPrefix, s.l.Flags())
+func (s *logger) SetOutput(w io.Writer) {
+	s.l = log.New(w, s.prefix, s.flags)
 }
 
 // SetFlags changes the timestamp flags on the output of the logger.
-func (s *Logger) SetTimestampFlags(flags int) {
+func (s *logger) SetTimestampFlags(flags int) {
+	s.flags = flags
 	s.l.SetFlags(flags)
 }
 
 // Add a key/value field to every log line from this logger.
-func (s *Logger) SetStaticField(name string, value interface{}) {
+func (s *logger) SetStaticField(name string, value interface{}) {
 	s.staticArgs[name] = fmt.Sprintf("%v", value)
 }
 
