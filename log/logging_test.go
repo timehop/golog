@@ -56,7 +56,7 @@ var _ = Describe("Logging functions", func() {
 		It("should print a formatted message with WARN prefix", func() {
 			log.Warn("", "Not all those who wander are lost.")
 
-			Expect(output.String()).To(Equal("WARN  | Not all those who wander are lost.\n"))
+			Expect(output.String()).To(Equal("WARN | Not all those who wander are lost.\n"))
 		})
 
 		It("should not output anything if log level is lower than LevelWarn", func() {
@@ -71,7 +71,7 @@ var _ = Describe("Logging functions", func() {
 		It("should print a formatted message with INFO prefix", func() {
 			log.Info("", "Not all those who wander are lost.")
 
-			Expect(output.String()).To(Equal("INFO  | Not all those who wander are lost.\n"))
+			Expect(output.String()).To(Equal("INFO | Not all those who wander are lost.\n"))
 		})
 
 		It("should not output anything if log level is lower than LevelInfo", func() {
@@ -117,8 +117,8 @@ var _ = Describe("Logger", func() {
 	Describe("#SetTimestampFlags", func() {
 		It("changes the output of the date", func() {
 			output := new(bytes.Buffer)
-			logger := log.NewWithID("bilbo")
-			logger.Level = log.LevelDebug
+			logger := log.New(log.Config{ID: "bilbo"})
+			logger.SetLevel(log.LevelDebug)
 			logger.SetTimestampFlags(log.FlagsDate)
 			logger.SetOutput(output)
 

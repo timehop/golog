@@ -129,7 +129,7 @@ func Fatal(id, description string, keysAndValues ...interface{}) {
 	if Level < LevelFatal {
 		return
 	}
-	DefaultLogger.formatter.logMessage(DefaultLogger.l, id, LevelFatalName, description, nil, keysAndValues...)
+	DefaultLogger.logMessage(LevelFatalName, id, description, keysAndValues...)
 	os.Exit(1)
 }
 
@@ -138,7 +138,7 @@ func Error(id, description string, keysAndValues ...interface{}) {
 	if Level < LevelError {
 		return
 	}
-	DefaultLogger.formatter.logMessage(DefaultLogger.l, id, LevelErrorName, description, nil, keysAndValues...)
+	DefaultLogger.logMessage(LevelErrorName, id, description, keysAndValues...)
 }
 
 // Warn outputs a warning message with an optional list of key/value pairs.
@@ -149,7 +149,7 @@ func Warn(id, description string, keysAndValues ...interface{}) {
 	if Level < LevelWarn {
 		return
 	}
-	DefaultLogger.formatter.logMessage(DefaultLogger.l, id, LevelWarnName, description, nil, keysAndValues...)
+	DefaultLogger.logMessage(LevelWarnName, id, description, keysAndValues...)
 }
 
 // Info outputs an info message with an optional list of key/value pairs.
@@ -160,7 +160,7 @@ func Info(id, description string, keysAndValues ...interface{}) {
 	if Level < LevelInfo {
 		return
 	}
-	DefaultLogger.formatter.logMessage(DefaultLogger.l, id, LevelInfoName, description, nil, keysAndValues...)
+	DefaultLogger.logMessage(LevelInfoName, id, description, keysAndValues...)
 }
 
 // Debug outputs an info message with an optional list of key/value pairs.
@@ -171,7 +171,7 @@ func Debug(id, description string, keysAndValues ...interface{}) {
 	if Level < LevelDebug {
 		return
 	}
-	DefaultLogger.formatter.logMessage(DefaultLogger.l, id, LevelDebugName, description, nil, keysAndValues...)
+	DefaultLogger.logMessage(LevelDebugName, id, description, keysAndValues...)
 }
 
 // Trace outputs an info message with an optional list of key/value pairs.
@@ -182,7 +182,7 @@ func Trace(id, description string, keysAndValues ...interface{}) {
 	if Level < LevelTrace {
 		return
 	}
-	DefaultLogger.formatter.logMessage(DefaultLogger.l, id, LevelTraceName, description, nil, keysAndValues...)
+	DefaultLogger.logMessage(LevelTraceName, id, description, keysAndValues...)
 }
 
 // SetOutput sets the output destination for the default logger.
@@ -215,6 +215,8 @@ type Logger interface {
 	SetOutput(w io.Writer)
 	SetTimestampFlags(flags int)
 	SetStaticField(name string, value interface{})
+
+	logMessage(level LogLevelName, id string, description string, keysAndValues ...interface{})
 }
 
 // Logger config. Default/unset values for each attribute are safe.
@@ -299,7 +301,7 @@ func SanitizeFormat(format LogFormat) LogFormat {
 	} else {
 		// Whether it's explicitly a DefaultFormat, or it's an unrecognized value,
 		// try to take from env var.
-		envFormat := os.Getenv("DEFAULT_LOG_ENCODING_FORMAT")
+		envFormat := os.Getenv("GOLOG_DEFAULT_ENCODING")
 		if envFormat == string(JsonFormat) || envFormat == string(PlainTextFormat) {
 			return LogFormat(envFormat)
 		}
@@ -321,7 +323,9 @@ type logger struct {
 	formatter  logFormatter
 	staticArgs map[string]string
 
-	l *log.Logger
+	prefix string
+	flags  int
+	l      *log.Logger
 }
 
 // Fatal outputs an error message with an optional list of key/value pairs and exits
@@ -329,7 +333,7 @@ func (s *logger) Fatal(description string, keysAndValues ...interface{}) {
 	if s.level < LevelFatal {
 		return
 	}
-	s.formatter.logMessage(s.l, s.ID, LevelFatalName, description, s.staticArgs, keysAndValues...)
+	s.logMessage(LevelFatalName, s.id, description, keysAndValues...)
 	os.Exit(1)
 }
 
@@ -338,7 +342,7 @@ func (s *logger) Error(description string, keysAndValues ...interface{}) {
 	if s.level < LevelError {
 		return
 	}
-	s.formatter.logMessage(s.l, s.ID, LevelErrorName, description, s.staticArgs, keysAndValues...)
+	s.logMessage(LevelErrorName, s.id, description, keysAndValues...)
 }
 
 // Warn outputs a warning message with an optional list of key/value pairs.
@@ -349,7 +353,7 @@ func (s *logger) Warn(description string, keysAndValues ...interface{}) {
 	if s.level < LevelWarn {
 		return
 	}
-	s.formatter.logMessage(s.l, s.ID, LevelWarnName, description, s.staticArgs, keysAndValues...)
+	s.logMessage(LevelWarnName, s.id, description, keysAndValues...)
 }
 
 // Info outputs an info message with an optional list of key/value pairs.
@@ -360,7 +364,7 @@ func (s *logger) Info(description string, keysAndValues ...interface{}) {
 	if s.level < LevelInfo {
 		return
 	}
-	s.formatter.logMessage(s.l, s.ID, LevelInfoName, description, s.staticArgs, keysAndValues...)
+	s.logMessage(LevelInfoName, s.id, description, keysAndValues...)
 }
 
 // Debug outputs an info message with an optional list of key/value pairs.
@@ -371,7 +375,7 @@ func (s *logger) Debug(description string, keysAndValues ...interface{}) {
 	if s.level < LevelDebug {
 		return
 	}
-	s.formatter.logMessage(s.l, s.ID, LevelDebugName, description, s.staticArgs, keysAndValues...)
+	s.logMessage(LevelDebugName, s.id, description, keysAndValues...)
 }
 
 // Trace outputs an info message with an optional list of key/value pairs.
@@ -382,7 +386,13 @@ func (s *logger) Trace(description string, keysAndValues ...interface{}) {
 	if s.level < LevelTrace {
 		return
 	}
-	s.formatter.logMessage(s.l, s.ID, LevelTraceName, description, s.staticArgs, keysAndValues...)
+	s.logMessage(LevelTraceName, s.id, description, keysAndValues...)
+}
+
+func (s *logger) logMessage(level LogLevelName, id string, description string, keysAndValues ...interface{}) {
+	msg := s.formatter.formatLogEvent(s.flags, id, level, description, s.staticArgs, keysAndValues...)
+	s.l.Println(msg)
+}
 
 func (s *logger) SetLevel(level LogLevel) {
 	s.level = level
@@ -407,35 +417,34 @@ func (s *logger) SetStaticField(name string, value interface{}) {
 }
 
 type logFormatter interface {
-	logMessage(
-		logger *log.Logger,
+	formatLogEvent(
+		flags int,
 		id string,
 		level LogLevelName,
 		description string,
 		staticFields map[string]string,
 		extraFieldKeysAndValues ...interface{},
-	)
+	) string
 }
 
 type plainTextLogFormatter struct{}
 
-// logMessage writes a formatted message to the default logger.
-//
 // Format is "SEVERITY | Description [| k1='v1' k2='v2' k3=]"
 // with key/value pairs being optional, depending on whether args are provided
-func (lf plainTextLogFormatter) logMessage(logger *log.Logger, id string, level LogLevelName, description string, staticFields map[string]string, args ...interface{}) {
+func (lf plainTextLogFormatter) formatLogEvent(flags int, id string, level LogLevelName, description string, staticFields map[string]string, args ...interface{}) string {
 	// A full log statement is <id> | <severity> | <description> | <keys and values>
-	items := make([]interface{}, 0, 8)
-	if logger.Flags() > FlagsNone {
-		items = append(items, "|")
+	items := make([]string, 0, 8)
+
+	// If there are flags, go's logger will prefix with stuff, so add an empty
+	// initial item as a placeholder, so string join will prefix a separator.
+	if flags > FlagsNone {
+		items = append(items, "")
 	}
 
-	items = append(items, level)
-	items = append(items, "|")
+	items = append(items, string(level))
 
-	if len(id) > 0 {
+	if id != "" {
 		items = append(items, id)
-		items = append(items, "|")
 	}
 
 	items = append(items, description)
@@ -446,12 +455,10 @@ func (lf plainTextLogFormatter) logMessage(logger *log.Logger, id string, level 
 			args = append([]interface{}{key, value}, args...)
 		}
 
-		keysAndValues := expandKeyValuePairs(args)
-		items = append(items, "|")
-		items = append(items, keysAndValues)
+		items = append(items, expandKeyValuePairs(args))
 	}
 
-	logger.Println(items...)
+	return strings.Join(items, " | ")
 }
 
 // expandKeyValuePairs converts a list of arguments into a string with the
@@ -480,7 +487,7 @@ func expandKeyValuePairs(keyValuePairs []interface{}) string {
 
 type jsonLogFormatter struct{}
 
-func (lf jsonLogFormatter) logMessage(logger *log.Logger, name string, level LogLevelName, msg string, staticFields map[string]string, extraFields ...interface{}) {
+func (lf jsonLogFormatter) formatLogEvent(flags int, name string, level LogLevelName, msg string, staticFields map[string]string, extraFields ...interface{}) string {
 	entry := jsonLogEntry{
 		Timestamp: time.Now().String(),
 		Level:     level,
@@ -512,10 +519,10 @@ func (lf jsonLogFormatter) logMessage(logger *log.Logger, name string, level Log
 
 	encodedEntry, err := json.Marshal(entry)
 	if err != nil {
-		logger.Printf("{\"ts\": %v, \"msg\": \"failed to marshal log entry\"}", entry.Timestamp)
-	} else {
-		logger.Println(string(encodedEntry))
+		return fmt.Sprintf("{\"ts\": %v, \"msg\": \"failed to marshal log entry\"}", entry.Timestamp)
 	}
+
+	return string(encodedEntry)
 }
 
 type jsonLogEntry struct {
