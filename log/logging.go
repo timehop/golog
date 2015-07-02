@@ -90,16 +90,16 @@ func init() {
 	defaultOutput = os.Stdout
 
 	Level = LevelInfo
-	switch os.Getenv("LOG_LEVEL") {
-	case "FATAL":
+	switch LogLevelName(os.Getenv("LOG_LEVEL")) {
+	case LevelFatalName:
 		Level = LevelFatal
-	case "ERROR":
+	case LevelErrorName:
 		Level = LevelError
-	case "WARN":
+	case LevelWarnName:
 		Level = LevelWarn
-	case "DEBUG":
+	case LevelDebugName:
 		Level = LevelDebug
-	case "TRACE":
+	case LevelTraceName:
 		Level = LevelTrace
 	}
 
