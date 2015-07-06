@@ -237,13 +237,13 @@ const (
 func New(conf Config, staticKeysAndValues ...interface{}) Logger {
 	var prefix string
 	var flags int
-	var formatter logFormatter
+	var formatter formatLogEvent
 	staticArgs := make(map[string]string, 0)
 
 	format := SanitizeFormat(conf.Format)
 
 	if format == JsonFormat {
-		formatter = jsonLogFormatter{}
+		formatter = formatLogEventAsJson
 
 		// Don't mess up the json by letting logger print these:
 		prefix = ""
@@ -254,7 +254,7 @@ func New(conf Config, staticKeysAndValues ...interface{}) Logger {
 			staticArgs["prefix"] = defaultPrefix
 		}
 	} else {
-		formatter = plainTextLogFormatter{}
+		formatter = formatLogEvent(formatLogEventAsPlainText)
 		prefix = defaultPrefix
 		flags = Flags
 	}
@@ -280,8 +280,8 @@ func New(conf Config, staticKeysAndValues ...interface{}) Logger {
 		id:    conf.ID,
 		level: Level,
 
-		formatter:  formatter,
-		staticArgs: staticArgs,
+		formatLogEvent: formatter,
+		staticArgs:     staticArgs,
 
 		// don't touch the default logger on 'log' package
 		// cache args to make a logger, in case it's changes with SetOutput()
@@ -320,8 +320,8 @@ type logger struct {
 	id    string
 	level LogLevel
 
-	formatter  logFormatter
-	staticArgs map[string]string
+	formatLogEvent formatLogEvent
+	staticArgs     map[string]string
 
 	prefix string
 	flags  int
@@ -390,7 +390,7 @@ func (s *logger) Trace(description string, keysAndValues ...interface{}) {
 }
 
 func (s *logger) logMessage(level LogLevelName, id string, description string, keysAndValues ...interface{}) {
-	msg := s.formatter.formatLogEvent(s.flags, id, level, description, s.staticArgs, keysAndValues...)
+	msg := s.formatLogEvent(s.flags, id, level, description, s.staticArgs, keysAndValues...)
 	s.l.Println(msg)
 }
 
@@ -416,22 +416,18 @@ func (s *logger) SetStaticField(name string, value interface{}) {
 	s.staticArgs[name] = fmt.Sprintf("%v", value)
 }
 
-type logFormatter interface {
-	formatLogEvent(
-		flags int,
-		id string,
-		level LogLevelName,
-		description string,
-		staticFields map[string]string,
-		extraFieldKeysAndValues ...interface{},
-	) string
-}
-
-type plainTextLogFormatter struct{}
+type formatLogEvent func(
+	flags int,
+	id string,
+	level LogLevelName,
+	description string,
+	staticFields map[string]string,
+	extraFieldKeysAndValues ...interface{},
+) string
 
 // Format is "SEVERITY | Description [| k1='v1' k2='v2' k3=]"
 // with key/value pairs being optional, depending on whether args are provided
-func (lf plainTextLogFormatter) formatLogEvent(flags int, id string, level LogLevelName, description string, staticFields map[string]string, args ...interface{}) string {
+func formatLogEventAsPlainText(flags int, id string, level LogLevelName, description string, staticFields map[string]string, args ...interface{}) string {
 	// A full log statement is <id> | <severity> | <description> | <keys and values>
 	items := make([]string, 0, 8)
 
@@ -485,9 +481,7 @@ func expandKeyValuePairs(keyValuePairs []interface{}) string {
 	return strings.Join(kvPairs, " ")
 }
 
-type jsonLogFormatter struct{}
-
-func (lf jsonLogFormatter) formatLogEvent(flags int, name string, level LogLevelName, msg string, staticFields map[string]string, extraFields ...interface{}) string {
+func formatLogEventAsJson(flags int, name string, level LogLevelName, msg string, staticFields map[string]string, extraFields ...interface{}) string {
 	entry := jsonLogEntry{
 		Timestamp: time.Now().String(),
 		Level:     level,
