@@ -89,6 +89,9 @@ func init() {
 	// Call a separate func to actually do anything so it can be tested. This
 	// function itself automatically gets called on package load.
 	initLogging()
+
+	// Setting up mockable fns is fine to do here, though.
+	osExit = os.Exit
 }
 
 func initLogging() {
@@ -136,7 +139,7 @@ func Fatal(id, description string, keysAndValues ...interface{}) {
 		return
 	}
 	DefaultLogger.logMessage(LevelFatalName, id, description, keysAndValues...)
-	os.Exit(1)
+	osExit(1)
 }
 
 // Error outputs an error message with an optional list of key/value pairs.
@@ -340,7 +343,7 @@ func (s *logger) Fatal(description string, keysAndValues ...interface{}) {
 		return
 	}
 	s.logMessage(LevelFatalName, s.id, description, keysAndValues...)
-	os.Exit(1)
+	osExit(1)
 }
 
 // Error outputs an error message with an optional list of key/value pairs.
@@ -532,3 +535,5 @@ type jsonLogEntry struct {
 	Message   string            `json:"msg,omitempty"`
 	Fields    map[string]string `json:"fields,omitempty"`
 }
+
+var osExit func(int)

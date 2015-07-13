@@ -14,6 +14,8 @@ import (
 
 var _ = Describe("Logging functions", func() {
 	var output *bytes.Buffer
+	var didExit bool
+	var exitCode int
 
 	// Reset logging
 	BeforeEach(func() {
@@ -23,6 +25,12 @@ var _ = Describe("Logging functions", func() {
 		os.Setenv("LOG_ENCODING", "")
 
 		initLogging()
+
+		didExit = false
+		osExit = func(code int) {
+			didExit = true
+			exitCode = code
+		}
 	})
 
 	Describe("SetPrefix()", func() {
@@ -83,7 +91,7 @@ var _ = Describe("Logging functions", func() {
 
 			It("should log with that format", func() {
 				Error("id", "msg")
-				Expect(output.String()).To(Equal(time.Now().Format("2006/01/02") + " logging.go:456:  | ERROR | id | msg\n"))
+				Expect(output.String()).To(Equal(time.Now().Format("2006/01/02") + " logging.go:458:  | ERROR | id | msg\n"))
 			})
 		})
 
@@ -94,6 +102,15 @@ var _ = Describe("Logging functions", func() {
 					initLogging()
 					output = new(bytes.Buffer)
 					SetOutput(output)
+				})
+
+				It("should log higher levels", func() {
+					Fatal("id", "msg")
+
+					Expect(output.String()).ToNot(BeEmpty())
+					Expect(strings.Count(output.String(), "\n")).To(Equal(1))
+					Expect(didExit).To(BeTrue())
+					Expect(exitCode).To(BeNumerically(">", 0))
 				})
 
 				It("should not log lower levels", func() {
@@ -116,9 +133,13 @@ var _ = Describe("Logging functions", func() {
 				})
 
 				It("should log higher levels", func() {
+					Fatal("id", "msg")
 					Error("id", "msg")
 
 					Expect(output.String()).ToNot(BeEmpty())
+					Expect(strings.Count(output.String(), "\n")).To(Equal(2))
+					Expect(didExit).To(BeTrue())
+					Expect(exitCode).To(BeNumerically(">", 0))
 				})
 
 				It("should not log lower levels", func() {
@@ -140,10 +161,14 @@ var _ = Describe("Logging functions", func() {
 				})
 
 				It("should log higher levels", func() {
+					Fatal("id", "msg")
 					Error("id", "msg")
 					Warn("id", "msg")
 
 					Expect(output.String()).ToNot(BeEmpty())
+					Expect(strings.Count(output.String(), "\n")).To(Equal(3))
+					Expect(didExit).To(BeTrue())
+					Expect(exitCode).To(BeNumerically(">", 0))
 				})
 
 				It("should not log lower levels", func() {
@@ -164,11 +189,15 @@ var _ = Describe("Logging functions", func() {
 				})
 
 				It("should log higher levels", func() {
+					Fatal("id", "msg")
 					Error("id", "msg")
 					Warn("id", "msg")
 					Info("id", "msg")
 
 					Expect(output.String()).ToNot(BeEmpty())
+					Expect(strings.Count(output.String(), "\n")).To(Equal(4))
+					Expect(didExit).To(BeTrue())
+					Expect(exitCode).To(BeNumerically(">", 0))
 				})
 
 				It("should not log lower levels", func() {
@@ -188,12 +217,16 @@ var _ = Describe("Logging functions", func() {
 				})
 
 				It("should log higher levels", func() {
+					Fatal("id", "msg")
 					Error("id", "msg")
 					Warn("id", "msg")
 					Info("id", "msg")
 					Debug("id", "msg")
 
 					Expect(output.String()).ToNot(BeEmpty())
+					Expect(strings.Count(output.String(), "\n")).To(Equal(5))
+					Expect(didExit).To(BeTrue())
+					Expect(exitCode).To(BeNumerically(">", 0))
 				})
 
 				It("should not log lower levels", func() {
@@ -212,6 +245,7 @@ var _ = Describe("Logging functions", func() {
 				})
 
 				It("should log higher levels", func() {
+					Fatal("id", "msg")
 					Error("id", "msg")
 					Warn("id", "msg")
 					Info("id", "msg")
@@ -219,6 +253,9 @@ var _ = Describe("Logging functions", func() {
 					Trace("id", "msg")
 
 					Expect(output.String()).ToNot(BeEmpty())
+					Expect(strings.Count(output.String(), "\n")).To(Equal(6))
+					Expect(didExit).To(BeTrue())
+					Expect(exitCode).To(BeNumerically(">", 0))
 				})
 			})
 		})
@@ -230,6 +267,38 @@ var _ = Describe("Logging functions", func() {
 			Level = LevelTrace
 			SetTimestampFlags(FlagsNone)
 			SetOutput(output)
+		})
+
+		Describe(".Fatal", func() {
+			It("should print a message with FATAL prefix without ID", func() {
+				Fatal("", "Not all those who wander are lost.")
+
+				Expect(output.String()).To(Equal("FATAL | Not all those who wander are lost.\n"))
+			})
+
+			It("should print a message with FATAL prefix and ID", func() {
+				Fatal("Bilbo", "Not all those who wander are lost.")
+
+				Expect(output.String()).To(Equal("FATAL | Bilbo | Not all those who wander are lost.\n"))
+			})
+
+			It("should print a message with FATAL prefix and key values", func() {
+				Fatal("Bilbo", "Not all those who wander are lost.", "key", "value", "foo", "bar")
+
+				Expect(output.String()).To(Equal("FATAL | Bilbo | Not all those who wander are lost. | key='value' foo='bar'\n"))
+			})
+
+			It("should print a message with FATAL prefix and key values", func() {
+				Fatal("Bilbo", "Not all those who wander are lost.", "key", "value", "foo", "bar")
+
+				Expect(output.String()).To(Equal("FATAL | Bilbo | Not all those who wander are lost. | key='value' foo='bar'\n"))
+			})
+
+			It("should print a message with FATAL prefix and key/value pairs and a valueless key", func() {
+				Fatal("", "Not all those who wander are lost.", "key", "value", "foo")
+
+				Expect(output.String()).To(Equal("FATAL | Not all those who wander are lost. | key='value' foo=\n"))
+			})
 		})
 
 		Describe(".Error", func() {
