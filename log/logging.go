@@ -86,6 +86,12 @@ var (
 )
 
 func init() {
+	// Call a separate func to actually do anything so it can be tested. This
+	// function itself automatically gets called on package load.
+	initLogging()
+}
+
+func initLogging() {
 	defaultPrefix = os.Getenv("LOG_PREFIX")
 	defaultOutput = os.Stdout
 
