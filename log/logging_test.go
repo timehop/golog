@@ -25,6 +25,37 @@ var _ = Describe("Logging functions", func() {
 		initLogging()
 	})
 
+	Describe("SetPrefix()", func() {
+		Context("When modifying existing prefix through package level fn", func() {
+			BeforeEach(func() {
+				os.Setenv("LOG_PREFIX", "env_prefix ")
+				initLogging()
+				SetPrefix("fn_prefix ")
+			})
+
+			Describe("DefaultLogger", func() {
+				It("should use the new prefix", func() {
+					output = new(bytes.Buffer)
+					SetOutput(output)
+
+					Error("id", "msg")
+					Expect(output.String()).To(Equal("fn_prefix ERROR | id | msg\n"))
+				})
+			})
+
+			Describe("New loggers", func() {
+				It("should use the new prefix", func() {
+					logger := New(Config{ID: "id"})
+					output = new(bytes.Buffer)
+					logger.SetOutput(output)
+
+					logger.Error("msg")
+					Expect(output.String()).To(Equal("fn_prefix ERROR | id | msg\n"))
+				})
+			})
+		})
+	})
+
 	Describe("init()", func() {
 		Context("When initialized with prefix set through env var", func() {
 			BeforeEach(func() {
