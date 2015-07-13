@@ -27,10 +27,62 @@ var _ = Describe("Logging functions", func() {
 		initLogging()
 
 		didExit = false
+		exitCode = 0
 		osExit = func(code int) {
 			didExit = true
 			exitCode = code
 		}
+	})
+
+	Describe("Fatal logging fns", func() {
+		Context("When logging level artificially set low", func() {
+			Describe("Package level Fatal()", func() {
+				BeforeEach(func() {
+					initLogging()
+					Level = LogLevel(-1)
+
+					didExit = false
+					exitCode = 0
+					output = new(bytes.Buffer)
+					SetOutput(output)
+
+					Fatal("id", "msg")
+				})
+
+				It("should not log when called", func() {
+					Expect(output.String()).To(BeEmpty())
+				})
+
+				It("should not exit when called", func() {
+					Expect(didExit).To(BeFalse())
+					Expect(exitCode).To(Equal(0))
+				})
+			})
+
+			Describe("Logger Fatal()", func() {
+				BeforeEach(func() {
+					Level = LogLevel(-1)
+					logger := NewDefault()
+
+					output = new(bytes.Buffer)
+					logger.SetOutput(output)
+
+					didExit = false
+					exitCode = 0
+
+					logger.Fatal("msg")
+				})
+
+				It("should not log when called", func() {
+					Expect(output.String()).To(BeEmpty())
+				})
+
+				It("should not exit when called", func() {
+					Expect(didExit).To(BeFalse())
+					Expect(exitCode).To(Equal(0))
+				})
+			})
+		})
 	})
 
 	Describe("SetPrefix()", func() {
