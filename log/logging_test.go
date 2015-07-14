@@ -97,13 +97,13 @@ var _ = Describe("Logging functions", func() {
 		Context("Without static fields", func() {
 			var output *bytes.Buffer
 
-			BeforeEach(func() {
-				logger = New(Config{Format: JsonFormat})
-				output = new(bytes.Buffer)
-				logger.SetOutput(output)
-			})
-
 			Context("Without dynamic fields", func() {
+				BeforeEach(func() {
+					logger = New(Config{Format: JsonFormat})
+					output = new(bytes.Buffer)
+					logger.SetOutput(output)
+				})
+
 				It("has empty fields in entry", func() {
 					logger.Error("oh no")
 
@@ -114,12 +114,31 @@ var _ = Describe("Logging functions", func() {
 			})
 
 			Context("With dynamic fields", func() {
-				It("has fields in entry", func() {
-					logger.Error("oh no", "field", "value")
+				Context("Using a JsonFormat logger", func() {
+					It("has fields in entry", func() {
+						logger = New(Config{Format: JsonFormat})
+						output = new(bytes.Buffer)
+						logger.SetOutput(output)
 
-					var entry jsonLogEntry
-					Expect(json.Unmarshal(output.Bytes(), &entry)).To(BeNil())
-					Expect(entry.Fields).To(HaveKeyWithValue("field", "value"))
+						logger.Error("oh no", "field", "value")
+
+						var entry jsonLogEntry
+						Expect(json.Unmarshal(output.Bytes(), &entry)).To(BeNil())
+						Expect(entry.Fields).To(HaveKeyWithValue("field", "value"))
+					})
+				})
+
+				Context("Using a PlainTextFormat logger", func() {
+					It("has fields in entry", func() {
+						logger = New(Config{Format: PlainTextFormat})
+						output = new(bytes.Buffer)
+						logger.SetOutput(output)
+
+						logger.Error("oh no", "field", "value")
+
+						Expect(output.String()).To(ContainSubstring("field"))
+						Expect(output.String()).To(ContainSubstring("value"))
+					})
 				})
 			})
 		})
@@ -127,13 +146,13 @@ var _ = Describe("Logging functions", func() {
 		Context("With static fields", func() {
 			var output *bytes.Buffer
 
-			BeforeEach(func() {
-				logger = New(Config{Format: JsonFormat}, "static_field", "static_value")
-				output = new(bytes.Buffer)
-				logger.SetOutput(output)
-			})
-
 			Context("Without dynamic fields", func() {
+				BeforeEach(func() {
+					logger = New(Config{Format: JsonFormat}, "static_field", "static_value")
+					output = new(bytes.Buffer)
+					logger.SetOutput(output)
+				})
+
 				It("has just static fields in entry", func() {
 					logger.Error("oh no")
 
@@ -146,27 +165,77 @@ var _ = Describe("Logging functions", func() {
 
 			Context("With dynamic fields", func() {
 				Context("That are different", func() {
-					It("has both static and dynamic fields in entry", func() {
-						logger.Error("oh no", "field", "value")
+					Context("Using a JsonFormat logger", func() {
+						BeforeEach(func() {
+							logger = New(Config{Format: JsonFormat}, "static_field", "static_value")
+							output = new(bytes.Buffer)
+							logger.SetOutput(output)
+						})
 
-						var entry jsonLogEntry
-						Expect(json.Unmarshal(output.Bytes(), &entry)).To(BeNil())
-						Expect(entry.Fields).To(HaveKeyWithValue("static_field", "static_value"))
-						Expect(entry.Fields).To(HaveKeyWithValue("field", "value"))
-						Expect(len(entry.Fields)).To(Equal(2))
+						It("has both static and dynamic fields in entry", func() {
+							logger.Error("oh no", "field", "value")
+
+							var entry jsonLogEntry
+							Expect(json.Unmarshal(output.Bytes(), &entry)).To(BeNil())
+							Expect(entry.Fields).To(HaveKeyWithValue("static_field", "static_value"))
+							Expect(entry.Fields).To(HaveKeyWithValue("field", "value"))
+							Expect(len(entry.Fields)).To(Equal(2))
+						})
+					})
+
+					Context("Using a PlainTextFormat logger", func() {
+						BeforeEach(func() {
+							logger = New(Config{Format: PlainTextFormat}, "static_field", "static_value")
+							output = new(bytes.Buffer)
+							logger.SetOutput(output)
+						})
+
+						It("has both static and dynamic fields in entry", func() {
+							logger.Error("oh no", "dynamic_field", "dynamic_value")
+
+							Expect(output.String()).To(ContainSubstring("static_field"))
+							Expect(output.String()).To(ContainSubstring("static_value"))
+							Expect(output.String()).To(ContainSubstring("dynamic_field"))
+							Expect(output.String()).To(ContainSubstring("dynamic_value"))
+						})
 					})
 				})
 
 				Context("That are same as static", func() {
-					It("overrides static field with dynamic value", func() {
-						logger.Error("oh no", "static_field", "value")
+					Context("Using a JsonFormat logger", func() {
+						BeforeEach(func() {
+							logger = New(Config{Format: JsonFormat}, "static_field", "static_value")
+							output = new(bytes.Buffer)
+							logger.SetOutput(output)
+						})
 
-						var entry jsonLogEntry
-						Expect(json.Unmarshal(output.Bytes(), &entry)).To(BeNil())
-						Expect(entry.Fields).To(HaveKeyWithValue("static_field", "value"))
-						Expect(len(entry.Fields)).To(Equal(1))
+						It("overrides static field with dynamic value", func() {
+							logger.Error("oh no", "static_field", "value")
+
+							var entry jsonLogEntry
+							Expect(json.Unmarshal(output.Bytes(), &entry)).To(BeNil())
+							Expect(entry.Fields).To(HaveKeyWithValue("static_field", "value"))
+							Expect(len(entry.Fields)).To(Equal(1))
+						})
+					})
+
+					Context("Using a PlainTextFormat logger", func() {
+						BeforeEach(func() {
+							logger = New(Config{Format: PlainTextFormat}, "static_field", "static_value")
+							output = new(bytes.Buffer)
+							logger.SetOutput(output)
+						})
+
+						It("overrides static field with dynamic value", func() {
+							logger.Error("oh no", "static_field", "value")
+
+							Expect(output.String()).To(ContainSubstring("static_field"))
+							Expect(output.String()).To(ContainSubstring("value"))
+							Expect(output.String()).ToNot(ContainSubstring("static_value"))
+						})
 					})
 				})
+
 			})
 		})
 
