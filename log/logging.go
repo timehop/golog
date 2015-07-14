@@ -238,8 +238,8 @@ type LogFormat string
 
 const (
 	DefaultFormat   LogFormat = "" // Use env variable, defaulting to PlainTextFormat
-	PlainTextFormat           = "text"
-	JsonFormat                = "json"
+	PlainTextFormat LogFormat = "text"
+	JsonFormat      LogFormat = "json"
 )
 
 // New creates a new logger instance.

@@ -34,6 +34,40 @@ var _ = Describe("Logging functions", func() {
 		}
 	})
 
+	Describe("SanitizeFormat()", func() {
+		Context("When called with a known format", func() {
+			It("returns that format", func() {
+				Expect(SanitizeFormat(PlainTextFormat)).To(Equal(PlainTextFormat))
+				Expect(SanitizeFormat(JsonFormat)).To(Equal(JsonFormat))
+			})
+		})
+
+		Context("When called with an unknown format", func() {
+			Context("And there's a default from env var", func() {
+				It("returns that default", func() {
+					os.Setenv("LOG_ENCODING", "json")
+					initLogging()
+
+					Expect(SanitizeFormat(LogFormat("whut"))).To(Equal(JsonFormat))
+
+					os.Setenv("LOG_ENCODING", "text")
+					initLogging()
+
+					Expect(SanitizeFormat(LogFormat("whut"))).To(Equal(PlainTextFormat))
+				})
+			})
+
+			Context("And there's no default from env var", func() {
+				It("returns global default", func() {
+					os.Setenv("LOG_ENCODING", "")
+					initLogging()
+
+					Expect(SanitizeFormat(LogFormat("whut"))).To(Equal(PlainTextFormat))
+				})
+			})
+		})
+	})
+
 	Describe("Fatal logging fns", func() {
 		Context("When logging level artificially set low", func() {
 			Describe("Package level Fatal()", func() {
