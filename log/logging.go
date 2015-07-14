@@ -46,12 +46,12 @@ import (
 type LogLevel int
 
 const (
-	LevelFatal LogLevel = iota
-	LevelError
-	LevelWarn
-	LevelInfo
-	LevelDebug
-	LevelTrace
+	LevelFatal LogLevel = 0
+	LevelError LogLevel = 1
+	LevelWarn  LogLevel = 2
+	LevelInfo  LogLevel = 3
+	LevelDebug LogLevel = 4
+	LevelTrace LogLevel = 5
 )
 
 type LogLevelName string
