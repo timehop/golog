@@ -291,6 +291,37 @@ var _ = Describe("Logging functions", func() {
 				})
 			})
 		})
+
+		Describe("Setting static fields after creating logger", func() {
+			var output *bytes.Buffer
+
+			BeforeEach(func() {
+				logger = New(Config{Format: JsonFormat}, "old_static_field", "old_static_value")
+				output = new(bytes.Buffer)
+				logger.SetOutput(output)
+				logger.SetStaticField("new_static_field", "new_static_value")
+			})
+
+			It("uses the static fields when loggin", func() {
+				logger.Error("oh no")
+
+				var entry jsonLogEntry
+				Expect(json.Unmarshal(output.Bytes(), &entry)).To(BeNil())
+				Expect(entry.Fields).To(HaveKeyWithValue("old_static_field", "old_static_value"))
+				Expect(entry.Fields).To(HaveKeyWithValue("new_static_field", "new_static_value"))
+				Expect(len(entry.Fields)).To(Equal(2))
+			})
+
+			It("override the newly set static fields when logging", func() {
+				logger.Error("oh no", "new_static_field", "dynamic_value")
+
+				var entry jsonLogEntry
+				Expect(json.Unmarshal(output.Bytes(), &entry)).To(BeNil())
+				Expect(entry.Fields).To(HaveKeyWithValue("old_static_field", "old_static_value"))
+				Expect(entry.Fields).To(HaveKeyWithValue("new_static_field", "dynamic_value"))
+				Expect(len(entry.Fields)).To(Equal(2))
+			})
+		})
 	})
 
 	Describe("SanitizeFormat()", func() {
