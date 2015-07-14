@@ -455,9 +455,19 @@ func formatLogEventAsPlainText(flags int, id string, level LogLevelName, descrip
 	items = append(items, description)
 
 	if len(args)+len(staticFields) > 0 {
-		// Prefix with static fields.
+		// Prefix with static fields, but make sure to allow args to override static.
 		for key, value := range staticFields {
-			args = append([]interface{}{key, value}, args...)
+			var existsInArgs bool
+
+			for i, arg := range args {
+				if i%2 == 0 && key == arg {
+					existsInArgs = true
+				}
+			}
+
+			if !existsInArgs {
+				args = append([]interface{}{key, value}, args...)
+			}
 		}
 
 		items = append(items, expandKeyValuePairs(args))
