@@ -637,6 +637,179 @@ var _ = Describe("Logging functions", func() {
 		})
 	})
 
+	Context("Using logger logging fns", func() {
+		var logger Logger
+		var output *bytes.Buffer
+
+		BeforeEach(func() {
+			logger = New(Config{Format: JsonFormat})
+			output = new(bytes.Buffer)
+			logger.SetOutput(output)
+		})
+
+		Describe("Fatal", func() {
+			Context("Below level", func() {
+				BeforeEach(func() {
+					logger.SetLevel(LevelFatal)
+				})
+
+				It("should log", func() {
+					logger.Fatal("oh no")
+
+					var entry jsonLogEntry
+					Expect(json.Unmarshal(output.Bytes(), &entry)).To(BeNil())
+					Expect(entry.Level).To(Equal(LevelFatalName))
+				})
+			})
+
+			Context("Above level", func() {
+				BeforeEach(func() {
+					logger.SetLevel(LogLevel(-1))
+				})
+
+				It("should not log", func() {
+					logger.Fatal("oh no")
+					Expect(output.Len()).To(Equal(0))
+				})
+			})
+		})
+
+		Describe("Error", func() {
+			Context("Below level", func() {
+				BeforeEach(func() {
+					logger.SetLevel(LevelError)
+				})
+
+				It("should log", func() {
+					logger.Error("oh no")
+
+					var entry jsonLogEntry
+					Expect(json.Unmarshal(output.Bytes(), &entry)).To(BeNil())
+					Expect(entry.Level).To(Equal(LevelErrorName))
+				})
+			})
+
+			Context("Above level", func() {
+				BeforeEach(func() {
+					logger.SetLevel(LevelFatal)
+				})
+
+				It("should not log", func() {
+					logger.Error("oh no")
+					Expect(output.Len()).To(Equal(0))
+				})
+			})
+		})
+
+		Describe("Warn", func() {
+			Context("Below level", func() {
+				BeforeEach(func() {
+					logger.SetLevel(LevelWarn)
+				})
+
+				It("should log", func() {
+					logger.Warn("oh no")
+
+					var entry jsonLogEntry
+					Expect(json.Unmarshal(output.Bytes(), &entry)).To(BeNil())
+					Expect(entry.Level).To(Equal(LevelWarnName))
+				})
+			})
+
+			Context("Above level", func() {
+				BeforeEach(func() {
+					logger.SetLevel(LevelFatal)
+				})
+
+				It("should not log", func() {
+					logger.Warn("oh no")
+					Expect(output.Len()).To(Equal(0))
+				})
+			})
+		})
+
+		Describe("Info", func() {
+			Context("Below level", func() {
+				BeforeEach(func() {
+					logger.SetLevel(LevelInfo)
+				})
+
+				It("should log", func() {
+					logger.Info("oh no")
+
+					var entry jsonLogEntry
+					Expect(json.Unmarshal(output.Bytes(), &entry)).To(BeNil())
+					Expect(entry.Level).To(Equal(LevelInfoName))
+				})
+			})
+
+			Context("Above level", func() {
+				BeforeEach(func() {
+					logger.SetLevel(LevelFatal)
+				})
+
+				It("should not log", func() {
+					logger.Info("oh no")
+					Expect(output.Len()).To(Equal(0))
+				})
+			})
+		})
+
+		Describe("Debug", func() {
+			Context("Below level", func() {
+				BeforeEach(func() {
+					logger.SetLevel(LevelDebug)
+				})
+
+				It("should log", func() {
+					logger.Debug("oh no")
+
+					var entry jsonLogEntry
+					Expect(json.Unmarshal(output.Bytes(), &entry)).To(BeNil())
+					Expect(entry.Level).To(Equal(LevelDebugName))
+				})
+			})
+
+			Context("Above level", func() {
+				BeforeEach(func() {
+					logger.SetLevel(LevelFatal)
+				})
+
+				It("should not log", func() {
+					logger.Debug("oh no")
+					Expect(output.Len()).To(Equal(0))
+				})
+			})
+		})
+
+		Describe("Trace", func() {
+			Context("Below level", func() {
+				BeforeEach(func() {
+					logger.SetLevel(LevelTrace)
+				})
+
+				It("should log", func() {
+					logger.Trace("oh no")
+
+					var entry jsonLogEntry
+					Expect(json.Unmarshal(output.Bytes(), &entry)).To(BeNil())
+					Expect(entry.Level).To(Equal(LevelTraceName))
+				})
+			})
+
+			Context("Above level", func() {
+				BeforeEach(func() {
+					logger.SetLevel(LevelFatal)
+				})
+
+				It("should not log", func() {
+					logger.Trace("oh no")
+					Expect(output.Len()).To(Equal(0))
+				})
+			})
+		})
+	})
+
 	Context("Using package level logging", func() {
 		BeforeEach(func() {
 			output = new(bytes.Buffer)
