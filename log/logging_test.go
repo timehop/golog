@@ -36,6 +36,45 @@ var _ = Describe("Logging functions", func() {
 	})
 
 	Describe("JsonFormat", func() {
+		Context("Logs a jsonLogEntry struct in json format", func() {
+			var timeBefore, timeAfter time.Time
+			var entry jsonLogEntry
+
+			BeforeEach(func() {
+				output := new(bytes.Buffer)
+				SetOutput(output)
+
+				timeBefore = time.Now()
+				New(Config{Format: JsonFormat, ID: "id"}).Error("oh no")
+				timeAfter = time.Now()
+
+				Expect(json.Unmarshal(output.Bytes(), &entry)).To(BeNil())
+			})
+
+			It("has a timestamp", func() {
+				timestamp, err := time.Parse("2006-01-02 15:04:05 -0700 MST", entry.Timestamp)
+				Expect(err).To(BeNil())
+				Expect(timestamp).To(BeTemporally(">=", timeBefore))
+				Expect(timestamp).To(BeTemporally("<=", timeAfter))
+			})
+
+			It("has a log level", func() {
+				Expect(entry.Level).To(Equal(LevelErrorName))
+			})
+
+			It("has a name", func() {
+				Expect(entry.Name).To(Equal("id"))
+			})
+
+			It("has a message", func() {
+				Expect(entry.Message).To(Equal("oh no"))
+			})
+
+			It("has fields", func() {
+				Expect(entry.Fields).To(BeEmpty())
+			})
+		})
+
 		Context("Default prefix is set", func() {
 			It("Uses the default prefix as a static field", func() {
 				os.Setenv("LOG_PREFIX", "default_prefix")
