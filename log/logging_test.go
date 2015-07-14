@@ -177,7 +177,7 @@ var _ = Describe("Logging functions", func() {
 
 			It("should log with that format", func() {
 				Error("id", "msg")
-				Expect(output.String()).To(Equal(time.Now().Format("2006/01/02") + " logging.go:458:  | ERROR | id | msg\n"))
+				Expect(output.String()).To(MatchRegexp("[0-9/]{10} logging.go:[0-9]+: +| ERROR | id | msg\n"))
 			})
 		})
 
