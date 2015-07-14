@@ -91,6 +91,139 @@ var _ = Describe("Logging functions", func() {
 		})
 	})
 
+	Describe("Fields", func() {
+		var logger Logger
+
+		Context("Without static fields", func() {
+			var output *bytes.Buffer
+
+			BeforeEach(func() {
+				logger = New(Config{Format: JsonFormat})
+				output = new(bytes.Buffer)
+				logger.SetOutput(output)
+			})
+
+			Context("Without dynamic fields", func() {
+				It("has empty fields in entry", func() {
+					logger.Error("oh no")
+
+					var entry jsonLogEntry
+					Expect(json.Unmarshal(output.Bytes(), &entry)).To(BeNil())
+					Expect(entry.Fields).To(BeEmpty())
+				})
+			})
+
+			Context("With dynamic fields", func() {
+				It("has fields in entry", func() {
+					logger.Error("oh no", "field", "value")
+
+					var entry jsonLogEntry
+					Expect(json.Unmarshal(output.Bytes(), &entry)).To(BeNil())
+					Expect(entry.Fields).To(HaveKeyWithValue("field", "value"))
+				})
+			})
+		})
+
+		Context("With static fields", func() {
+			var output *bytes.Buffer
+
+			BeforeEach(func() {
+				logger = New(Config{Format: JsonFormat}, "static_field", "static_value")
+				output = new(bytes.Buffer)
+				logger.SetOutput(output)
+			})
+
+			Context("Without dynamic fields", func() {
+				It("has just static fields in entry", func() {
+					logger.Error("oh no")
+
+					var entry jsonLogEntry
+					Expect(json.Unmarshal(output.Bytes(), &entry)).To(BeNil())
+					Expect(entry.Fields).To(HaveKeyWithValue("static_field", "static_value"))
+					Expect(len(entry.Fields)).To(Equal(1))
+				})
+			})
+
+			Context("With dynamic fields", func() {
+				Context("That are different", func() {
+					It("has both static and dynamic fields in entry", func() {
+						logger.Error("oh no", "field", "value")
+
+						var entry jsonLogEntry
+						Expect(json.Unmarshal(output.Bytes(), &entry)).To(BeNil())
+						Expect(entry.Fields).To(HaveKeyWithValue("static_field", "static_value"))
+						Expect(entry.Fields).To(HaveKeyWithValue("field", "value"))
+						Expect(len(entry.Fields)).To(Equal(2))
+					})
+				})
+
+				Context("That are same as static", func() {
+					It("overrides static field with dynamic value", func() {
+						logger.Error("oh no", "static_field", "value")
+
+						var entry jsonLogEntry
+						Expect(json.Unmarshal(output.Bytes(), &entry)).To(BeNil())
+						Expect(entry.Fields).To(HaveKeyWithValue("static_field", "value"))
+						Expect(len(entry.Fields)).To(Equal(1))
+					})
+				})
+			})
+		})
+
+		Context("With odd number of key-value pairs of fields", func() {
+			Context("In static fields", func() {
+				It("uses the odd key with an empty value", func() {
+					logger = New(Config{Format: JsonFormat}, "static_field", "static_value", "odd_key")
+					output := new(bytes.Buffer)
+					logger.SetOutput(output)
+
+					logger.Error("oh no")
+
+					var entry jsonLogEntry
+					Expect(json.Unmarshal(output.Bytes(), &entry)).To(BeNil())
+					Expect(entry.Fields).To(HaveKeyWithValue("static_field", "static_value"))
+					Expect(entry.Fields).To(HaveKeyWithValue("odd_key", ""))
+					Expect(len(entry.Fields)).To(Equal(2))
+				})
+			})
+
+			Context("In dynamic fields", func() {
+				It("uses the odd key with an empty value", func() {
+					logger = New(Config{Format: JsonFormat}, "static_field", "static_value")
+					output := new(bytes.Buffer)
+					logger.SetOutput(output)
+
+					logger.Error("oh no", "field", "value", "odd_key")
+
+					var entry jsonLogEntry
+					Expect(json.Unmarshal(output.Bytes(), &entry)).To(BeNil())
+					Expect(entry.Fields).To(HaveKeyWithValue("static_field", "static_value"))
+					Expect(entry.Fields).To(HaveKeyWithValue("field", "value"))
+					Expect(entry.Fields).To(HaveKeyWithValue("odd_key", ""))
+					Expect(len(entry.Fields)).To(Equal(3))
+				})
+			})
+
+			Context("In both static and dynamic fields", func() {
+				It("uses both odd keys with an empty values", func() {
+					logger = New(Config{Format: JsonFormat}, "static_field", "static_value", "static_odd_key")
+					output := new(bytes.Buffer)
+					logger.SetOutput(output)
+
+					logger.Error("oh no", "field", "value", "dynamic_odd_key")
+
+					var entry jsonLogEntry
+					Expect(json.Unmarshal(output.Bytes(), &entry)).To(BeNil())
+					Expect(entry.Fields).To(HaveKeyWithValue("static_field", "static_value"))
+					Expect(entry.Fields).To(HaveKeyWithValue("static_odd_key", ""))
+					Expect(entry.Fields).To(HaveKeyWithValue("field", "value"))
+					Expect(entry.Fields).To(HaveKeyWithValue("static_odd_key", ""))
+					Expect(len(entry.Fields)).To(Equal(4))
+				})
+			})
+		})
+	})
+
 	Describe("SanitizeFormat()", func() {
 		Context("When called with a known format", func() {
 			It("returns that format", func() {
