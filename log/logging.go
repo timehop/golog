@@ -530,10 +530,8 @@ func formatLogEventAsJson(flags int, name string, level LogLevelName, msg string
 		entry.Fields[currentKey] = ""
 	}
 
-	encodedEntry, err := json.Marshal(entry)
-	if err != nil {
-		return fmt.Sprintf("{\"ts\": %v, \"msg\": \"failed to marshal log entry\"}", entry.Timestamp)
-	}
+	// log entry can't fail to marshal, it's just strings, so ignore error for 100% test coverage
+	encodedEntry, _ := json.Marshal(entry)
 
 	return string(encodedEntry)
 }
