@@ -58,11 +58,11 @@ type LogLevelName string
 
 const (
 	LevelFatalName LogLevelName = "FATAL"
-	LevelErrorName              = "ERROR"
-	LevelWarnName               = "WARN"
-	LevelInfoName               = "INFO"
-	LevelDebugName              = "DEBUG"
-	LevelTraceName              = "TRACE"
+	LevelErrorName LogLevelName = "ERROR"
+	LevelWarnName  LogLevelName = "WARN"
+	LevelInfoName  LogLevelName = "INFO"
+	LevelDebugName LogLevelName = "DEBUG"
+	LevelTraceName LogLevelName = "TRACE"
 )
 
 const (
