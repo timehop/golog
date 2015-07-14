@@ -2,6 +2,7 @@ package log
 
 import (
 	"bytes"
+	"encoding/json"
 	"log"
 	"os"
 	"strconv"
@@ -32,6 +33,23 @@ var _ = Describe("Logging functions", func() {
 			didExit = true
 			exitCode = code
 		}
+	})
+
+	Describe("JsonFormat", func() {
+		Context("Default prefix is set", func() {
+			It("Uses the default prefix as a static field", func() {
+				os.Setenv("LOG_PREFIX", "default_prefix")
+				initLogging()
+
+				output := new(bytes.Buffer)
+				SetOutput(output)
+				New(Config{Format: JsonFormat}).Error("oh no")
+
+				var entry jsonLogEntry
+				Expect(json.Unmarshal(output.Bytes(), &entry)).To(BeNil())
+				Expect(entry.Fields).To(HaveKeyWithValue("prefix", "default_prefix"))
+			})
+		})
 	})
 
 	Describe("SanitizeFormat()", func() {
