@@ -491,7 +491,7 @@ func expandKeyValuePairs(keyValuePairs []interface{}) string {
 		key := keyValuePairs[keyIndex]
 		if valueIndex < argCount {
 			value := keyValuePairs[valueIndex]
-			kvPairs[i] = fmt.Sprintf("%v='%v'", key, value)
+			kvPairs[i] = fmt.Sprintf("%v='%#v'", key, value)
 		} else {
 			kvPairs[i] = fmt.Sprintf("%v=", key)
 		}
