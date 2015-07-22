@@ -62,16 +62,16 @@ var _ = Describe("Logging functions", func() {
 				Expect(entry.Level).To(Equal(LevelErrorName))
 			})
 
-			It("has a name", func() {
-				Expect(entry.Name).To(Equal("id"))
-			})
-
 			It("has a message", func() {
 				Expect(entry.Message).To(Equal("oh no"))
 			})
 
 			It("has fields", func() {
 				Expect(entry.Fields).To(BeEmpty())
+			})
+
+			It("has an id field", func() {
+				Expect(entry.Fields).To(HaveKeyWithValue("id", "id"))
 			})
 		})
 
