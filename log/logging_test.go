@@ -62,16 +62,12 @@ var _ = Describe("Logging functions", func() {
 				Expect(entry.Level).To(Equal(LevelErrorName))
 			})
 
-			It("has a name", func() {
-				Expect(entry.Name).To(Equal("id"))
-			})
-
 			It("has a message", func() {
 				Expect(entry.Message).To(Equal("oh no"))
 			})
 
-			It("has fields", func() {
-				Expect(entry.Fields).To(BeEmpty())
+			It("has an id field", func() {
+				Expect(entry.Fields).To(HaveKeyWithValue("id", "id"))
 			})
 		})
 
@@ -363,7 +359,7 @@ var _ = Describe("Logging functions", func() {
 			Describe("Package level Fatal()", func() {
 				BeforeEach(func() {
 					initLogging()
-					Level = LogLevel(-1)
+					SetLevel(LogLevel(-1))
 
 					didExit = false
 					exitCode = 0
@@ -385,7 +381,7 @@ var _ = Describe("Logging functions", func() {
 
 			Describe("Logger Fatal()", func() {
 				BeforeEach(func() {
-					Level = LogLevel(-1)
+					SetLevel(LogLevel(-1))
 					logger := NewDefault()
 
 					output = new(bytes.Buffer)
@@ -813,7 +809,7 @@ var _ = Describe("Logging functions", func() {
 	Context("Using package level logging", func() {
 		BeforeEach(func() {
 			output = new(bytes.Buffer)
-			Level = LevelTrace
+			SetLevel(LevelTrace)
 			SetTimestampFlags(FlagsNone)
 			SetOutput(output)
 		})
@@ -890,7 +886,7 @@ var _ = Describe("Logging functions", func() {
 			})
 
 			It("should not output anything if log level is lower than LevelWarn", func() {
-				Level = LevelError
+				SetLevel(LevelError)
 				Warn("", "Not all those who wander are lost.")
 
 				Expect(output.String()).To(BeEmpty())
@@ -905,7 +901,7 @@ var _ = Describe("Logging functions", func() {
 			})
 
 			It("should not output anything if log level is lower than LevelInfo", func() {
-				Level = LevelWarn
+				SetLevel(LevelWarn)
 				Info("", "Not all those who wander are lost.")
 
 				Expect(output.String()).To(BeEmpty())
@@ -920,7 +916,7 @@ var _ = Describe("Logging functions", func() {
 			})
 
 			It("should not output anything if log level is lower than LevelDebug", func() {
-				Level = LevelInfo
+				SetLevel(LevelInfo)
 				Debug("", "Not all those who wander are lost.")
 
 				Expect(output.String()).To(BeEmpty())
@@ -935,7 +931,7 @@ var _ = Describe("Logging functions", func() {
 			})
 
 			It("should not output anything if log level is lower than LevelTrace", func() {
-				Level = LevelInfo
+				SetLevel(LevelInfo)
 				Trace("", "Not all those who wander are lost.")
 
 				Expect(output.String()).To(BeEmpty())
