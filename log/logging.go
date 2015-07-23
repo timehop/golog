@@ -134,13 +134,13 @@ func SetPrefix(prefix string) {
 // Fatal outputs a severe error message just before terminating the process.
 // Use judiciously.
 func Fatal(id, description string, keysAndValues ...interface{}) {
-	keysAndValues = append([]interface{}{"id", id}, keysAndValues...)
+	keysAndValues = append([]interface{}{"golog_id", id}, keysAndValues...)
 	DefaultLogger.Fatal(description, keysAndValues...)
 }
 
 // Error outputs an error message with an optional list of key/value pairs.
 func Error(id, description string, keysAndValues ...interface{}) {
-	keysAndValues = append([]interface{}{"id", id}, keysAndValues...)
+	keysAndValues = append([]interface{}{"golog_id", id}, keysAndValues...)
 	DefaultLogger.Error(description, keysAndValues...)
 }
 
@@ -149,7 +149,7 @@ func Error(id, description string, keysAndValues ...interface{}) {
 // If LogLevel is set below LevelWarn, calling this method will yield no
 // side effects.
 func Warn(id, description string, keysAndValues ...interface{}) {
-	keysAndValues = append([]interface{}{"id", id}, keysAndValues...)
+	keysAndValues = append([]interface{}{"golog_id", id}, keysAndValues...)
 	DefaultLogger.Warn(description, keysAndValues...)
 }
 
@@ -158,7 +158,7 @@ func Warn(id, description string, keysAndValues ...interface{}) {
 // If LogLevel is set below LevelInfo, calling this method will yield no
 // side effects.
 func Info(id, description string, keysAndValues ...interface{}) {
-	keysAndValues = append([]interface{}{"id", id}, keysAndValues...)
+	keysAndValues = append([]interface{}{"golog_id", id}, keysAndValues...)
 	DefaultLogger.Info(description, keysAndValues...)
 }
 
@@ -167,7 +167,7 @@ func Info(id, description string, keysAndValues ...interface{}) {
 // If LogLevel is set below LevelDebug, calling this method will yield no
 // side effects.
 func Debug(id, description string, keysAndValues ...interface{}) {
-	keysAndValues = append([]interface{}{"id", id}, keysAndValues...)
+	keysAndValues = append([]interface{}{"golog_id", id}, keysAndValues...)
 	DefaultLogger.Debug(description, keysAndValues...)
 }
 
@@ -176,7 +176,7 @@ func Debug(id, description string, keysAndValues ...interface{}) {
 // If LogLevel is set below LevelTrace, calling this method will yield no
 // side effects.
 func Trace(id, description string, keysAndValues ...interface{}) {
-	keysAndValues = append([]interface{}{"id", id}, keysAndValues...)
+	keysAndValues = append([]interface{}{"golog_id", id}, keysAndValues...)
 	DefaultLogger.Trace(description, keysAndValues...)
 }
 
@@ -260,7 +260,7 @@ func New(conf Config, staticKeysAndValues ...interface{}) Logger {
 	// Set 'ID' config as a static field, but before reading the varargs suplied
 	// fields, so that they can override the config.
 	if conf.ID != "" {
-		staticArgs["id"] = conf.ID
+		staticArgs["golog_id"] = conf.ID
 	}
 
 	// Do this after handling prefix, so that individual loggers can override
@@ -462,7 +462,7 @@ func formatLogEventAsPlainText(flags int, level LogLevelName, description string
 	// Grab ID from args.
 	var id string
 	for i, arg := range args {
-		if i%2 == 0 && fmt.Sprintf("%v", arg) == "id" && i < len(args)-1 {
+		if i%2 == 0 && fmt.Sprintf("%v", arg) == "golog_id" && i < len(args)-1 {
 			// Set id and remove from fields
 			id = fmt.Sprintf("%v", args[i+1])
 			args = append(args[:i], args[i+2:]...)

@@ -67,7 +67,7 @@ var _ = Describe("Logging functions", func() {
 			})
 
 			It("has an id field", func() {
-				Expect(entry.Fields).To(HaveKeyWithValue("id", "id"))
+				Expect(entry.Fields).To(HaveKeyWithValue("golog_id", "id"))
 			})
 		})
 
