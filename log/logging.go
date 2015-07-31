@@ -36,7 +36,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -263,6 +262,15 @@ func New(conf Config, staticKeysAndValues ...interface{}) Logger {
 		staticArgs["golog_id"] = conf.ID
 	}
 
+	if len(staticKeysAndValues)%2 == 1 {
+		// If there are an odd number of staticKeysAndValue, then there's probably one
+		// missing, which means we'd interpret a value as a key, which can be bad for
+		// logs-as-data, like metrics on staticKeys or elasticsearch. But, instead of
+		// throwing the corrupt data out, serialize it into a string, which both
+		// keeps the info, and maintains key-value integrity.
+		staticKeysAndValues = []interface{}{"corruptStaticFields", flattenKeyValues(staticKeysAndValues)}
+	}
+
 	// Do this after handling prefix, so that individual loggers can override
 	// external env variable.
 	currentKey := ""
@@ -272,12 +280,6 @@ func New(conf Config, staticKeysAndValues ...interface{}) Logger {
 		} else {
 			staticArgs[currentKey] = fmt.Sprintf("%v", arg)
 		}
-	}
-
-	// If there are an odd number of keys+values, add the dangling key with empty
-	// value.
-	if len(staticKeysAndValues)%2 == 1 {
-		staticArgs[currentKey] = ""
 	}
 
 	return &logger{
@@ -392,6 +394,25 @@ func (s *logger) Trace(description string, keysAndValues ...interface{}) {
 }
 
 func (s *logger) logMessage(level LogLevelName, description string, keysAndValues ...interface{}) {
+	// If there are an odd number of keysAndValue, then there's probably one
+	// missing, which means we'd interpret a value as a key, which can be bad for
+	// logs-as-data, like metrics on keys or elasticsearch. But, instead of
+	// throwing the corrupt data out, serialize it into a string, which both
+	// keeps the info, and maintains key-value integrity.
+	if len(keysAndValues)%2 == 1 {
+		// But, before checking for corrupt keys, remove golog_id, if present, cuz
+		// that's an auto-field, so don't let user's missuse of keysAndValues mess up
+		// the ID, which they didn't do incorrectly.
+		if len(keysAndValues) >= 2 && keysAndValues[0] == "golog_id" {
+			keysAndValues = []interface{}{
+				"golog_id", keysAndValues[1],
+				"corruptFields", flattenKeyValues(keysAndValues[2:]),
+			}
+		} else {
+			keysAndValues = []interface{}{"corruptFields", flattenKeyValues(keysAndValues)}
+		}
+	}
+
 	msg := s.formatLogEvent(s.flags, level, description, s.staticArgs, keysAndValues...)
 	s.l.Println(msg)
 }
@@ -484,22 +505,13 @@ func formatLogEventAsPlainText(flags int, level LogLevelName, description string
 
 // expandKeyValuePairs converts a list of arguments into a string with the
 // format "k='v' foo='bar' bar=".
-//
-// When the final value is missing, the format "bar=" is used.
 func expandKeyValuePairs(keyValuePairs []interface{}) string {
-	argCount := len(keyValuePairs)
+	kvPairs := make([]string, 0, len(keyValuePairs)/2)
 
-	kvPairCount := int(math.Ceil(float64(argCount) / 2)) // math, y u do dis.
-	kvPairs := make([]string, kvPairCount)
-	for i := 0; i < kvPairCount; i++ {
-		keyIndex := i * 2
-		valueIndex := keyIndex + 1
-		key := keyValuePairs[keyIndex]
-		if valueIndex < argCount {
-			value := keyValuePairs[valueIndex]
-			kvPairs[i] = fmt.Sprintf("%v='%v'", key, value)
-		} else {
-			kvPairs[i] = fmt.Sprintf("%v=", key)
+	// Just ignore the last dangling kv if odd #, cuz bug.
+	for i, kv := range keyValuePairs {
+		if i%2 == 1 {
+			kvPairs = append(kvPairs, fmt.Sprintf("%v='%v'", keyValuePairs[i-1], kv))
 		}
 	}
 
@@ -530,11 +542,6 @@ func formatLogEventAsJson(flags int, level LogLevelName, msg string, staticField
 		}
 	}
 
-	// If there are an odd number of keys+values, add empty key
-	if len(extraFields)%2 == 1 {
-		entry.Fields[currentKey] = ""
-	}
-
 	// log entry can't fail to marshal, it's just strings, so ignore error for 100% test coverage
 	encodedEntry, _ := json.Marshal(entry)
 
@@ -546,6 +553,15 @@ type jsonLogEntry struct {
 	Level     LogLevelName      `json:"lvl"`
 	Message   string            `json:"msg,omitempty"`
 	Fields    map[string]string `json:"fields,omitempty"`
+}
+
+func flattenKeyValues(keysAndValues []interface{}) string {
+	stringKVs := make([]string, len(keysAndValues))
+	for i, kv := range keysAndValues {
+		stringKVs[i] = fmt.Sprintf("%v", kv)
+	}
+
+	return strings.Join(stringKVs, ", ")
 }
 
 var osExit func(int)
