@@ -237,23 +237,23 @@ var _ = Describe("Logging functions", func() {
 
 		Context("With odd number of key-value pairs of fields", func() {
 			Context("In static fields", func() {
-				It("uses the odd key with an empty value", func() {
+				It("uses corrupt static field key with regular dynamic fields", func() {
 					logger = New(Config{Format: JsonFormat}, "static_field", "static_value", "odd_key")
 					output := new(bytes.Buffer)
 					logger.SetOutput(output)
 
-					logger.Error("oh no")
+					logger.Error("oh no", "key", "value")
 
 					var entry jsonLogEntry
 					Expect(json.Unmarshal(output.Bytes(), &entry)).To(BeNil())
-					Expect(entry.Fields).To(HaveKeyWithValue("static_field", "static_value"))
-					Expect(entry.Fields).To(HaveKeyWithValue("odd_key", ""))
+					Expect(entry.Fields).To(HaveKeyWithValue("corruptStaticFields", "static_field, static_value, odd_key"))
+					Expect(entry.Fields).To(HaveKeyWithValue("key", "value"))
 					Expect(len(entry.Fields)).To(Equal(2))
 				})
 			})
 
 			Context("In dynamic fields", func() {
-				It("uses the odd key with an empty value", func() {
+				It("uses static fields with corrupt dynamic key", func() {
 					logger = New(Config{Format: JsonFormat}, "static_field", "static_value")
 					output := new(bytes.Buffer)
 					logger.SetOutput(output)
@@ -263,14 +263,13 @@ var _ = Describe("Logging functions", func() {
 					var entry jsonLogEntry
 					Expect(json.Unmarshal(output.Bytes(), &entry)).To(BeNil())
 					Expect(entry.Fields).To(HaveKeyWithValue("static_field", "static_value"))
-					Expect(entry.Fields).To(HaveKeyWithValue("field", "value"))
-					Expect(entry.Fields).To(HaveKeyWithValue("odd_key", ""))
-					Expect(len(entry.Fields)).To(Equal(3))
+					Expect(entry.Fields).To(HaveKeyWithValue("corruptFields", "field, value, odd_key"))
+					Expect(len(entry.Fields)).To(Equal(2))
 				})
 			})
 
 			Context("In both static and dynamic fields", func() {
-				It("uses both odd keys with an empty values", func() {
+				It("has separate corrupt static and dynamic keys", func() {
 					logger = New(Config{Format: JsonFormat}, "static_field", "static_value", "static_odd_key")
 					output := new(bytes.Buffer)
 					logger.SetOutput(output)
@@ -279,11 +278,9 @@ var _ = Describe("Logging functions", func() {
 
 					var entry jsonLogEntry
 					Expect(json.Unmarshal(output.Bytes(), &entry)).To(BeNil())
-					Expect(entry.Fields).To(HaveKeyWithValue("static_field", "static_value"))
-					Expect(entry.Fields).To(HaveKeyWithValue("static_odd_key", ""))
-					Expect(entry.Fields).To(HaveKeyWithValue("field", "value"))
-					Expect(entry.Fields).To(HaveKeyWithValue("static_odd_key", ""))
-					Expect(len(entry.Fields)).To(Equal(4))
+					Expect(entry.Fields).To(HaveKeyWithValue("corruptStaticFields", "static_field, static_value, static_odd_key"))
+					Expect(entry.Fields).To(HaveKeyWithValue("corruptFields", "field, value, dynamic_odd_key"))
+					Expect(len(entry.Fields)).To(Equal(2))
 				})
 			})
 		})
@@ -842,7 +839,7 @@ var _ = Describe("Logging functions", func() {
 			It("should print a message with FATAL prefix and key/value pairs and a valueless key", func() {
 				Fatal("", "Not all those who wander are lost.", "key", "value", "foo")
 
-				Expect(output.String()).To(Equal("FATAL | Not all those who wander are lost. | key='value' foo=\n"))
+				Expect(output.String()).To(Equal("FATAL | Not all those who wander are lost. | corruptFields='key, value, foo'\n"))
 			})
 		})
 
@@ -871,10 +868,10 @@ var _ = Describe("Logging functions", func() {
 				Expect(output.String()).To(Equal("ERROR | Bilbo | Not all those who wander are lost. | key='value' foo='bar'\n"))
 			})
 
-			It("should print a message with ERROR prefix and key/value pairs and a valueless key", func() {
+			It("should print a message with ERROR prefix and corrupt fields", func() {
 				Error("", "Not all those who wander are lost.", "key", "value", "foo")
 
-				Expect(output.String()).To(Equal("ERROR | Not all those who wander are lost. | key='value' foo=\n"))
+				Expect(output.String()).To(Equal("ERROR | Not all those who wander are lost. | corruptFields='key, value, foo'\n"))
 			})
 		})
 
