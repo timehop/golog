@@ -37,6 +37,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -45,12 +46,12 @@ import (
 type LogLevel int
 
 const (
-	LevelFatal LogLevel = 0
-	LevelError LogLevel = 1
-	LevelWarn  LogLevel = 2
-	LevelInfo  LogLevel = 3
-	LevelDebug LogLevel = 4
-	LevelTrace LogLevel = 5
+	LevelFatal LogLevel = iota
+	LevelError
+	LevelWarn
+	LevelInfo
+	LevelDebug
+	LevelTrace
 )
 
 type LogLevelName string
@@ -77,10 +78,11 @@ const (
 var (
 	DefaultLogger Logger
 
-	defaultPrefix string
-	defaultOutput io.Writer
-	defaultLevel  LogLevel
-	defaultFlags  int
+	defaultPrefix     string
+	defaultStackTrace bool
+	defaultOutput     io.Writer
+	defaultLevel      LogLevel
+	defaultFlags      int
 )
 
 func init() {
@@ -116,6 +118,11 @@ func initLogging() {
 		defaultFlags = flags
 	}
 
+	if trace, err := strconv.ParseBool(os.Getenv("LOG_STACK_TRACE")); err == nil {
+		defaultStackTrace = trace
+	} else {
+		defaultStackTrace = true
+	}
 	DefaultLogger = NewDefault()
 }
 
@@ -184,6 +191,10 @@ func SetLevel(level LogLevel) {
 	DefaultLogger.SetLevel(level)
 }
 
+func SetStackTrace(trace bool) {
+	defaultStackTrace = trace
+}
+
 // SetOutput sets the output destination for the default logger.
 //
 // All new logger instances created after this call will use the provided
@@ -214,12 +225,14 @@ type Logger interface {
 	SetOutput(w io.Writer)
 	SetTimestampFlags(flags int)
 	SetStaticField(name string, value interface{})
+	SetStackTrace(trace bool)
 }
 
 // Logger config. Default/unset values for each attribute are safe.
 type Config struct {
 	Format LogFormat
 	ID     string
+	Depth  int
 }
 
 type LogFormat string
@@ -262,6 +275,10 @@ func New(conf Config, staticKeysAndValues ...interface{}) Logger {
 		staticArgs["golog_id"] = conf.ID
 	}
 
+	if conf.Depth == 0 {
+		conf.Depth = 2
+	}
+
 	if len(staticKeysAndValues)%2 == 1 {
 		// If there are an odd number of staticKeysAndValue, then there's probably one
 		// missing, which means we'd interpret a value as a key, which can be bad for
@@ -283,6 +300,9 @@ func New(conf Config, staticKeysAndValues ...interface{}) Logger {
 	}
 
 	return &logger{
+		depth:      conf.Depth,
+		stackTrace: defaultStackTrace,
+
 		level: defaultLevel,
 
 		formatLogEvent: formatter,
@@ -297,7 +317,7 @@ func New(conf Config, staticKeysAndValues ...interface{}) Logger {
 }
 
 func NewDefault() Logger {
-	return New(Config{})
+	return New(Config{Depth: 3})
 }
 
 func SanitizeFormat(format LogFormat) LogFormat {
@@ -322,6 +342,9 @@ func SanitizeFormat(format LogFormat) LogFormat {
 // with inferior severity will yield no effect) and wraps the underlying
 // logger, which is a standard lib's *log.Logger instance.
 type logger struct {
+	depth      int
+	stackTrace bool
+
 	level LogLevel
 
 	formatLogEvent formatLogEvent
@@ -337,7 +360,7 @@ func (s *logger) Fatal(description string, keysAndValues ...interface{}) {
 	if s.level < LevelFatal {
 		return
 	}
-	s.logMessage(LevelFatalName, description, keysAndValues...)
+	s.logMessage(s.depth, LevelFatalName, description, keysAndValues...)
 	osExit(1)
 }
 
@@ -346,7 +369,7 @@ func (s *logger) Error(description string, keysAndValues ...interface{}) {
 	if s.level < LevelError {
 		return
 	}
-	s.logMessage(LevelErrorName, description, keysAndValues...)
+	s.logMessage(s.depth, LevelErrorName, description, keysAndValues...)
 }
 
 // Warn outputs a warning message with an optional list of key/value pairs.
@@ -357,7 +380,7 @@ func (s *logger) Warn(description string, keysAndValues ...interface{}) {
 	if s.level < LevelWarn {
 		return
 	}
-	s.logMessage(LevelWarnName, description, keysAndValues...)
+	s.logMessage(s.depth, LevelWarnName, description, keysAndValues...)
 }
 
 // Info outputs an info message with an optional list of key/value pairs.
@@ -368,7 +391,7 @@ func (s *logger) Info(description string, keysAndValues ...interface{}) {
 	if s.level < LevelInfo {
 		return
 	}
-	s.logMessage(LevelInfoName, description, keysAndValues...)
+	s.logMessage(s.depth, LevelInfoName, description, keysAndValues...)
 }
 
 // Debug outputs an info message with an optional list of key/value pairs.
@@ -379,7 +402,7 @@ func (s *logger) Debug(description string, keysAndValues ...interface{}) {
 	if s.level < LevelDebug {
 		return
 	}
-	s.logMessage(LevelDebugName, description, keysAndValues...)
+	s.logMessage(s.depth, LevelDebugName, description, keysAndValues...)
 }
 
 // Trace outputs an info message with an optional list of key/value pairs.
@@ -390,10 +413,12 @@ func (s *logger) Trace(description string, keysAndValues ...interface{}) {
 	if s.level < LevelTrace {
 		return
 	}
-	s.logMessage(LevelTraceName, description, keysAndValues...)
+	s.logMessage(s.depth, LevelTraceName, description, keysAndValues...)
 }
 
-func (s *logger) logMessage(level LogLevelName, description string, keysAndValues ...interface{}) {
+// Adding caller information
+// https://stackoverflow.com/questions/24809287/how-do-you-get-a-golang-program-to-print-the-line-number-of-the-error-it-just-ca
+func (s *logger) logMessage(depth int, level LogLevelName, description string, keysAndValues ...interface{}) {
 	// If there are an odd number of keysAndValue, then there's probably one
 	// missing, which means we'd interpret a value as a key, which can be bad for
 	// logs-as-data, like metrics on keys or elasticsearch. But, instead of
@@ -413,12 +438,23 @@ func (s *logger) logMessage(level LogLevelName, description string, keysAndValue
 		}
 	}
 
+	// hack in caller stats
+	if defaultStackTrace {
+		if _, fn, line, ok := runtime.Caller(depth); ok {
+			keysAndValues = append(keysAndValues, "file", fn, "line", line)
+		}
+	}
+
 	msg := s.formatLogEvent(s.flags, level, description, s.staticArgs, keysAndValues...)
 	s.l.Println(msg)
 }
 
 func (s *logger) SetLevel(level LogLevel) {
 	s.level = level
+}
+
+func (s *logger) SetStackTrace(trace bool) {
+	s.stackTrace = trace
 }
 
 // SetOutput sets the output destination for the logger.
@@ -526,7 +562,7 @@ func formatLogEventAsJson(flags int, level LogLevelName, msg string, staticField
 	}
 
 	// If there are an odd number of keys+values, round up, cuz empty key will still be added.
-	var numExtraKeyValuePairs int = (len(extraFields) + 1) / 2
+	numExtraKeyValuePairs := (len(extraFields) + 1) / 2
 
 	entry.Fields = make(map[string]string, len(staticFields)+numExtraKeyValuePairs)
 	for key, value := range staticFields {
