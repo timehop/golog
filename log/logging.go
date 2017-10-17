@@ -37,6 +37,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -141,13 +142,13 @@ func SetPrefix(prefix string) {
 // Use judiciously.
 func Fatal(id, description string, keysAndValues ...interface{}) {
 	keysAndValues = append([]interface{}{"golog_id", id}, keysAndValues...)
-	DefaultLogger.Fatal(description, keysAndValues...)
+	(DefaultLogger.(*logger)).fatal(1, description, keysAndValues...)
 }
 
 // Error outputs an error message with an optional list of key/value pairs.
 func Error(id, description string, keysAndValues ...interface{}) {
 	keysAndValues = append([]interface{}{"golog_id", id}, keysAndValues...)
-	DefaultLogger.Error(description, keysAndValues...)
+	(DefaultLogger.(*logger)).error(1, description, keysAndValues...)
 }
 
 // Warn outputs a warning message with an optional list of key/value pairs.
@@ -156,7 +157,7 @@ func Error(id, description string, keysAndValues ...interface{}) {
 // side effects.
 func Warn(id, description string, keysAndValues ...interface{}) {
 	keysAndValues = append([]interface{}{"golog_id", id}, keysAndValues...)
-	DefaultLogger.Warn(description, keysAndValues...)
+	(DefaultLogger.(*logger)).warn(1, description, keysAndValues...)
 }
 
 // Info outputs an info message with an optional list of key/value pairs.
@@ -165,7 +166,7 @@ func Warn(id, description string, keysAndValues ...interface{}) {
 // side effects.
 func Info(id, description string, keysAndValues ...interface{}) {
 	keysAndValues = append([]interface{}{"golog_id", id}, keysAndValues...)
-	DefaultLogger.Info(description, keysAndValues...)
+	(DefaultLogger.(*logger)).info(1, description, keysAndValues...)
 }
 
 // Debug outputs an info message with an optional list of key/value pairs.
@@ -174,7 +175,7 @@ func Info(id, description string, keysAndValues ...interface{}) {
 // side effects.
 func Debug(id, description string, keysAndValues ...interface{}) {
 	keysAndValues = append([]interface{}{"golog_id", id}, keysAndValues...)
-	DefaultLogger.Debug(description, keysAndValues...)
+	(DefaultLogger.(*logger)).debug(1, description, keysAndValues...)
 }
 
 // Trace outputs an info message with an optional list of key/value pairs.
@@ -183,7 +184,7 @@ func Debug(id, description string, keysAndValues ...interface{}) {
 // side effects.
 func Trace(id, description string, keysAndValues ...interface{}) {
 	keysAndValues = append([]interface{}{"golog_id", id}, keysAndValues...)
-	DefaultLogger.Trace(description, keysAndValues...)
+	(DefaultLogger.(*logger)).trace(1, description, keysAndValues...)
 }
 
 func SetLevel(level LogLevel) {
@@ -232,7 +233,6 @@ type Logger interface {
 type Config struct {
 	Format LogFormat
 	ID     string
-	Depth  int
 }
 
 type LogFormat string
@@ -275,10 +275,6 @@ func New(conf Config, staticKeysAndValues ...interface{}) Logger {
 		staticArgs["golog_id"] = conf.ID
 	}
 
-	if conf.Depth == 0 {
-		conf.Depth = 2
-	}
-
 	if len(staticKeysAndValues)%2 == 1 {
 		// If there are an odd number of staticKeysAndValue, then there's probably one
 		// missing, which means we'd interpret a value as a key, which can be bad for
@@ -300,7 +296,6 @@ func New(conf Config, staticKeysAndValues ...interface{}) Logger {
 	}
 
 	return &logger{
-		depth:      conf.Depth,
 		stackTrace: defaultStackTrace,
 
 		level: defaultLevel,
@@ -317,7 +312,7 @@ func New(conf Config, staticKeysAndValues ...interface{}) Logger {
 }
 
 func NewDefault() Logger {
-	return New(Config{Depth: 3})
+	return New(Config{})
 }
 
 func SanitizeFormat(format LogFormat) LogFormat {
@@ -357,19 +352,27 @@ type logger struct {
 
 // Fatal outputs an error message with an optional list of key/value pairs and exits
 func (s *logger) Fatal(description string, keysAndValues ...interface{}) {
+	s.fatal(1, description, keysAndValues...)
+}
+
+func (s *logger) fatal(depth int, description string, keysAndValues ...interface{}) {
 	if s.level < LevelFatal {
 		return
 	}
-	s.logMessage(s.depth, LevelFatalName, description, keysAndValues...)
+	s.logMessage(depth+1, LevelFatalName, description, keysAndValues...)
 	osExit(1)
 }
 
 // Error outputs an error message with an optional list of key/value pairs.
 func (s *logger) Error(description string, keysAndValues ...interface{}) {
+	s.error(1, description, keysAndValues...)
+}
+
+func (s *logger) error(depth int, description string, keysAndValues ...interface{}) {
 	if s.level < LevelError {
 		return
 	}
-	s.logMessage(s.depth, LevelErrorName, description, keysAndValues...)
+	s.logMessage(depth+1, LevelErrorName, description, keysAndValues...)
 }
 
 // Warn outputs a warning message with an optional list of key/value pairs.
@@ -377,10 +380,14 @@ func (s *logger) Error(description string, keysAndValues ...interface{}) {
 // If LogLevel is set below LevelWarn, calling this method will yield no
 // side effects.
 func (s *logger) Warn(description string, keysAndValues ...interface{}) {
+	s.warn(1, description, keysAndValues...)
+}
+
+func (s *logger) warn(depth int, description string, keysAndValues ...interface{}) {
 	if s.level < LevelWarn {
 		return
 	}
-	s.logMessage(s.depth, LevelWarnName, description, keysAndValues...)
+	s.logMessage(depth+1, LevelWarnName, description, keysAndValues...)
 }
 
 // Info outputs an info message with an optional list of key/value pairs.
@@ -388,10 +395,14 @@ func (s *logger) Warn(description string, keysAndValues ...interface{}) {
 // If LogLevel is set below LevelInfo, calling this method will yield no
 // side effects.
 func (s *logger) Info(description string, keysAndValues ...interface{}) {
+	s.info(1, description, keysAndValues...)
+}
+
+func (s *logger) info(depth int, description string, keysAndValues ...interface{}) {
 	if s.level < LevelInfo {
 		return
 	}
-	s.logMessage(s.depth, LevelInfoName, description, keysAndValues...)
+	s.logMessage(depth+1, LevelInfoName, description, keysAndValues...)
 }
 
 // Debug outputs an info message with an optional list of key/value pairs.
@@ -399,10 +410,14 @@ func (s *logger) Info(description string, keysAndValues ...interface{}) {
 // If LogLevel is set below LevelDebug, calling this method will yield no
 // side effects.
 func (s *logger) Debug(description string, keysAndValues ...interface{}) {
+	s.debug(1, description, keysAndValues...)
+}
+
+func (s *logger) debug(depth int, description string, keysAndValues ...interface{}) {
 	if s.level < LevelDebug {
 		return
 	}
-	s.logMessage(s.depth, LevelDebugName, description, keysAndValues...)
+	s.logMessage(depth+1, LevelDebugName, description, keysAndValues...)
 }
 
 // Trace outputs an info message with an optional list of key/value pairs.
@@ -410,10 +425,14 @@ func (s *logger) Debug(description string, keysAndValues ...interface{}) {
 // If LogLevel is set below LevelTrace, calling this method will yield no
 // side effects.
 func (s *logger) Trace(description string, keysAndValues ...interface{}) {
+	s.trace(1, description, keysAndValues...)
+}
+
+func (s *logger) trace(depth int, description string, keysAndValues ...interface{}) {
 	if s.level < LevelTrace {
 		return
 	}
-	s.logMessage(s.depth, LevelTraceName, description, keysAndValues...)
+	s.logMessage(depth+1, LevelTraceName, description, keysAndValues...)
 }
 
 // Adding caller information
@@ -440,8 +459,9 @@ func (s *logger) logMessage(depth int, level LogLevelName, description string, k
 
 	// hack in caller stats
 	if defaultStackTrace {
-		if _, fn, line, ok := runtime.Caller(depth); ok {
-			keysAndValues = append(keysAndValues, "file", fn, "line", line)
+		if _, fn, line, ok := runtime.Caller(depth + 1); ok {
+			lineno := fmt.Sprintf("%s:%d", filepath.Base(fn), line)
+			keysAndValues = append(keysAndValues, "lineno", lineno)
 		}
 	}
 
