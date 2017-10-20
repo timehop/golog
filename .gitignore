@@ -24,3 +24,5 @@ _testmain.go
 *.coverprofile
 
 .DS_Store
+
+debug

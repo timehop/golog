@@ -24,6 +24,7 @@ var _ = Describe("Logging functions", func() {
 		os.Setenv("LOG_LEVEL", "")
 		os.Setenv("LOG_FORMAT", "0")
 		os.Setenv("LOG_ENCODING", "")
+		os.Setenv("LOG_STACK_TRACE", "false")
 
 		initLogging()
 
@@ -52,7 +53,16 @@ var _ = Describe("Logging functions", func() {
 			})
 
 			It("has a timestamp", func() {
-				timestamp, err := time.Parse("2006-01-02 15:04:05 -0700 MST", entry.Timestamp)
+				// https://gowalker.org/time
+				// ... omit the monotonic clock reading, and t.Format provides no format for it
+				// must remove the monotonic clock from the string value of Timestamp
+				// Monotonic clocks were introduced in go1.9
+
+				start := strings.Index(entry.Timestamp, " m=+")
+				chunk := []byte(entry.Timestamp)[:start]
+				entryTimestamp := string(chunk)
+
+				timestamp, err := time.Parse("2006-01-02 15:04:05 -0700 MST", entryTimestamp)
 				Expect(err).To(BeNil())
 				Expect(timestamp).To(BeTemporally(">=", timeBefore))
 				Expect(timestamp).To(BeTemporally("<=", timeAfter))
@@ -89,7 +99,6 @@ var _ = Describe("Logging functions", func() {
 
 	Describe("Fields", func() {
 		var logger Logger
-
 		Context("Without static fields", func() {
 			var output *bytes.Buffer
 
@@ -452,7 +461,6 @@ var _ = Describe("Logging functions", func() {
 		Context("When initialized with a format", func() {
 			BeforeEach(func() {
 				os.Setenv("LOG_FORMAT", strconv.FormatInt(log.Ldate|log.Lshortfile, 10))
-
 				initLogging()
 				output = new(bytes.Buffer)
 				SetOutput(output)
@@ -923,15 +931,29 @@ var _ = Describe("Logging functions", func() {
 		Describe(".Trace", func() {
 			It("should print a formatted message with TRACE prefix", func() {
 				Trace("", "Not all those who wander are lost.")
-
 				Expect(output.String()).To(Equal("TRACE | Not all those who wander are lost.\n"))
 			})
 
 			It("should not output anything if log level is lower than LevelTrace", func() {
 				SetLevel(LevelInfo)
 				Trace("", "Not all those who wander are lost.")
-
 				Expect(output.String()).To(BeEmpty())
+			})
+		})
+
+		Describe("#logMessage", func() {
+			It("It should add the stack trace", func() {
+				SetStackTrace(true)
+				Error("", "Not all those who wander are lost.")
+				Expect(defaultStackTrace).To(BeTrue())
+				Expect(output.String()).To(ContainSubstring("lineno="))
+			})
+			It("It should remove the stack trace", func() {
+				SetStackTrace(false)
+				Error("", "Not all those who wander are lost.")
+				Expect(defaultStackTrace).To(BeFalse())
+				Expect(output.String()).NotTo(ContainSubstring("file"))
+				Expect(output.String()).NotTo(ContainSubstring("line"))
 			})
 		})
 	})

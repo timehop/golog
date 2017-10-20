@@ -1,0 +1,27 @@
+machine:
+  environment:
+    USER_ROOT: "$HOME/.go_workspace/src/github.com/$CIRCLE_PROJECT_USERNAME"
+    PROJECT_ROOT: "$USER_ROOT/$CIRCLE_PROJECT_REPONAME"
+    PATH: "node_modules/.bin:/usr/local/go/bin:/usr/local/go_workspace/bin:/tmp/go-build-it:$HOME/.go_workspace/bin:${PATH}"
+    GOPATH: "$HOME/.go_workspace"
+    TRAVIS_BRANCH: $CIRCLE_BRANCH # shim for lets
+    TRAVIS_REPO_SLUG: $CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME # shim for lets
+    
+  post:
+    - sudo rm -rf /usr/local/go
+    - if [ ! -e go1.9.linux-amd64.tar.gz  ]; then curl -o go1.9.linux-amd64.tar.gz https://storage.googleapis.com/golang/go1.9.linux-amd64.tar.gz; fi
+    - sudo tar -C /usr/local -xzf go1.9.linux-amd64.tar.gz
+
+dependencies:
+    cache_directories:
+        - "~/downloads"
+        - ~/go1.9.linux-amd64.tar.gz
+    override:
+        - if [ ! -d ~/downloads ]; then mkdir ~/downloads; fi
+        - mkdir -p $USER_ROOT
+        - ln -s $HOME/$CIRCLE_PROJECT_REPONAME $PROJECT_ROOT
+        - go get -u github.com/onsi/ginkgo/ginkgo
+
+test:
+    override:
+        - cd $PROJECT_ROOT && ginkgo -r -v --randomizeAllSpecs --skipMeasurements --cover --trace --race
