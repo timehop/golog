@@ -323,8 +323,9 @@ func SanitizeFormat(format LogFormat) LogFormat {
 	} else {
 		// Whether it's explicitly a DefaultFormat, or it's an unrecognized value,
 		// try to take from env var.
+
 		envFormat := os.Getenv("LOG_ENCODING")
-		if envFormat == string(JsonFormat) || envFormat == string(PlainTextFormat) {
+		if envFormat == string(JsonFormat) || envFormat == string(PlainTextFormat) || envFormat == string(KeyValueFormat) {
 			return LogFormat(envFormat)
 		}
 	}
