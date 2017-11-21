@@ -946,7 +946,7 @@ var _ = Describe("Logging functions", func() {
 				SetStackTrace(true)
 				Error("", "Not all those who wander are lost.")
 				Expect(defaultStackTrace).To(BeTrue())
-				Expect(output.String()).To(ContainSubstring("lineno="))
+				Expect(output.String()).To(ContainSubstring("line="))
 			})
 			It("It should remove the stack trace", func() {
 				SetStackTrace(false)

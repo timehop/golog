@@ -241,6 +241,7 @@ const (
 	DefaultFormat   LogFormat = "" // Use env variable, defaulting to PlainTextFormat
 	PlainTextFormat LogFormat = "text"
 	JsonFormat      LogFormat = "json"
+	KeyValueFormat  LogFormat = "key_value"
 )
 
 // New creates a new logger instance.
@@ -251,7 +252,6 @@ func New(conf Config, staticKeysAndValues ...interface{}) Logger {
 	staticArgs := make(map[string]string, 0)
 
 	format := SanitizeFormat(conf.Format)
-
 	if format == JsonFormat {
 		formatter = formatLogEventAsJson
 
@@ -263,6 +263,8 @@ func New(conf Config, staticKeysAndValues ...interface{}) Logger {
 		if defaultPrefix != "" {
 			staticArgs["prefix"] = defaultPrefix
 		}
+	} else if format == KeyValueFormat {
+		formatter = formatLogEvent(formatLogEventAsKeyValue)
 	} else {
 		formatter = formatLogEvent(formatLogEventAsPlainText)
 		prefix = defaultPrefix
@@ -316,7 +318,7 @@ func NewDefault() Logger {
 }
 
 func SanitizeFormat(format LogFormat) LogFormat {
-	if format == PlainTextFormat || format == JsonFormat {
+	if format == PlainTextFormat || format == JsonFormat || format == KeyValueFormat {
 		return format
 	} else {
 		// Whether it's explicitly a DefaultFormat, or it's an unrecognized value,
@@ -460,8 +462,7 @@ func (s *logger) logMessage(depth int, level LogLevelName, description string, k
 	// hack in caller stats
 	if defaultStackTrace {
 		if _, fn, line, ok := runtime.Caller(depth + 1); ok {
-			lineno := fmt.Sprintf("%s:%d", filepath.Base(fn), line)
-			keysAndValues = append(keysAndValues, "lineno", lineno)
+			keysAndValues = append(keysAndValues, "file", filepath.Base(fn), "line", strconv.Itoa(line))
 		}
 	}
 
@@ -557,6 +558,79 @@ func formatLogEventAsPlainText(flags int, level LogLevelName, description string
 	}
 
 	return strings.Join(items, " | ")
+}
+
+func formatLogEventAsKeyValue(flags int, level LogLevelName, description string, staticFields map[string]string, args ...interface{}) string {
+	// Example output
+	// level='INFO' channel='LogID' message='Not all those who wander are lost.' hello='world' foo='bar' file='logging_test.go' line_number='1022'"
+	items := make([]string, 0, 8)
+
+	// If there are flags, go's logger will prefix with stuff, so add an empty
+	// initial item as a placeholder, so string join will prefix a separator.
+	if flags > FlagsNone {
+		items = append(items, "")
+	}
+
+	items = append(items, string(level))
+
+	// Combine args and staticFields, allowing args to override staticFields.
+	// But don't use yet, just use it for ID first.
+	if len(args)+len(staticFields) > 0 {
+		// Prefix with static fields, but make sure to allow args to override static.
+		for key, value := range staticFields {
+			var existsInArgs bool
+
+			for i, arg := range args {
+				if i%2 == 0 && key == arg {
+					existsInArgs = true
+				}
+			}
+
+			if !existsInArgs {
+				args = append([]interface{}{key, value}, args...)
+			}
+		}
+	}
+
+	// Grab ID from args.
+	var id string
+	for i, arg := range args {
+		if i%2 == 0 && fmt.Sprintf("%v", arg) == "golog_id" && i < len(args)-1 {
+			// Set id and remove from fields
+			id = fmt.Sprintf("%v", args[i+1])
+			args = append(args[:i], args[i+2:]...)
+			break
+		}
+	}
+
+	// Making sure an ID is always present so that the index logic
+	// below doesn't break
+	if id == "" {
+		id = "Golog"
+	}
+
+	items = append(items, id, description)
+
+	if len(args) > 0 {
+		items = append(items, expandKeyValuePairs(args))
+	}
+
+	// Use the aleady formatted and parsed items slice above to create a key_value specific log line
+	// Severity, LogID, and a Message are always required and present and always in this order
+	itemsNew := make([]string, len(items))
+	for i := range items {
+		switch i {
+		case 0:
+			itemsNew[0] = fmt.Sprintf("level='%s'", items[0])
+		case 1:
+			itemsNew[1] = fmt.Sprintf("channel='%s'", items[1])
+		case 2:
+			itemsNew[2] = fmt.Sprintf("message='%s'", items[2])
+		default:
+			itemsNew[i] = items[i]
+		}
+	}
+	return strings.Join(itemsNew, " ")
 }
 
 // expandKeyValuePairs converts a list of arguments into a string with the
