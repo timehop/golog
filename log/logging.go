@@ -572,7 +572,7 @@ func formatLogEventAsKeyValue(flags int, level LogLevelName, description string,
 		items = append(items, "")
 	}
 
-	items = append(items, time.Now().String(), string(level))
+	items = append(items, strconv.Itoa(int(time.Now().Unix())), string(level))
 
 	// Combine args and staticFields, allowing args to override staticFields.
 	// But don't use yet, just use it for ID first.
