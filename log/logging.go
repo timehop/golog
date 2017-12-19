@@ -610,7 +610,7 @@ func formatLogEventAsKeyValue(flags int, level LogLevelName, description string,
 		id = "Golog"
 	}
 
-	items = append(items, id, description)
+	items = append(items, id, description, time.Now().String())
 
 	if len(args) > 0 {
 		items = append(items, expandKeyValuePairs(args))
@@ -627,6 +627,8 @@ func formatLogEventAsKeyValue(flags int, level LogLevelName, description string,
 			itemsNew[1] = fmt.Sprintf("channel='%s'", items[1])
 		case 2:
 			itemsNew[2] = fmt.Sprintf("message='%s'", items[2])
+		case 3:
+			itemsNew[3] = fmt.Sprintf("timestamp='%s'", items[3])
 		default:
 			itemsNew[i] = items[i]
 		}
