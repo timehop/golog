@@ -572,7 +572,7 @@ func formatLogEventAsKeyValue(flags int, level LogLevelName, description string,
 		items = append(items, "")
 	}
 
-	items = append(items, string(level))
+	items = append(items, time.Now().String(), string(level))
 
 	// Combine args and staticFields, allowing args to override staticFields.
 	// But don't use yet, just use it for ID first.
@@ -610,7 +610,7 @@ func formatLogEventAsKeyValue(flags int, level LogLevelName, description string,
 		id = "Golog"
 	}
 
-	items = append(items, id, description, time.Now().String())
+	items = append(items, id, description)
 
 	if len(args) > 0 {
 		items = append(items, expandKeyValuePairs(args))
@@ -622,13 +622,13 @@ func formatLogEventAsKeyValue(flags int, level LogLevelName, description string,
 	for i := range items {
 		switch i {
 		case 0:
-			itemsNew[0] = fmt.Sprintf("level='%s'", items[0])
+			itemsNew[0] = fmt.Sprintf("timestamp='%s'", items[0])
 		case 1:
-			itemsNew[1] = fmt.Sprintf("channel='%s'", items[1])
+			itemsNew[1] = fmt.Sprintf("level='%s'", items[1])
 		case 2:
-			itemsNew[2] = fmt.Sprintf("message='%s'", items[2])
+			itemsNew[2] = fmt.Sprintf("channel='%s'", items[2])
 		case 3:
-			itemsNew[3] = fmt.Sprintf("timestamp='%s'", items[3])
+			itemsNew[3] = fmt.Sprintf("message='%s'", items[3])
 		default:
 			itemsNew[i] = items[i]
 		}
