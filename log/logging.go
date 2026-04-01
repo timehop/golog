@@ -20,15 +20,16 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// Package log provids a severity-based key/value logging replacement for Go's
+// Package log provides a severity-based key/value logging replacement for Go's
 // standard logger.
 //
 // The output is a simple and clean logging format that strikes the perfect
-// balance between being human readable and easy to write parsing tools for.
+// balance between being human-readable and easy to write parsing tools for.
 //
 // Examples:
-//   ERROR | MyLibrary | Could not connect to server. | url='http://timehop.com/' error='timed out'
-//   INFO  | MyLibrary | Something happened.
+//
+//	ERROR | MyLibrary | Could not connect to server. | url='http://timehop.com/' error='timed out'
+//	INFO  | MyLibrary | Something happened.
 package log
 
 import (
@@ -127,27 +128,27 @@ func initLogging() {
 	DefaultLogger = NewDefault()
 }
 
-// Changes the global prefix for all log statements.
+// SetPrefix Changes the global prefix for all log statements.
 //
 // New logger instances created after this method is called will be affected.
 // Prefix is useful for multi-tail scenarios (tailing logs across multiple
 // machines, to help distinguish which is which.)
 func SetPrefix(prefix string) {
 	defaultPrefix = prefix
-	// Must recreate the default logger so it can pickup the prefix.
+	// Must recreate the default logger so it can pick up the prefix.
 	DefaultLogger = NewDefault()
 }
 
 // Fatal outputs a severe error message just before terminating the process.
 // Use judiciously.
-func Fatal(id, description string, keysAndValues ...interface{}) {
-	keysAndValues = append([]interface{}{"golog_id", id}, keysAndValues...)
+func Fatal(id, description string, keysAndValues ...any) {
+	keysAndValues = append([]any{"golog_id", id}, keysAndValues...)
 	(DefaultLogger.(*logger)).fatal(1, description, keysAndValues...)
 }
 
 // Error outputs an error message with an optional list of key/value pairs.
-func Error(id, description string, keysAndValues ...interface{}) {
-	keysAndValues = append([]interface{}{"golog_id", id}, keysAndValues...)
+func Error(id, description string, keysAndValues ...any) {
+	keysAndValues = append([]any{"golog_id", id}, keysAndValues...)
 	(DefaultLogger.(*logger)).error(1, description, keysAndValues...)
 }
 
@@ -155,8 +156,8 @@ func Error(id, description string, keysAndValues ...interface{}) {
 //
 // If LogLevel is set below LevelWarn, calling this method will yield no
 // side effects.
-func Warn(id, description string, keysAndValues ...interface{}) {
-	keysAndValues = append([]interface{}{"golog_id", id}, keysAndValues...)
+func Warn(id, description string, keysAndValues ...any) {
+	keysAndValues = append([]any{"golog_id", id}, keysAndValues...)
 	(DefaultLogger.(*logger)).warn(1, description, keysAndValues...)
 }
 
@@ -164,8 +165,8 @@ func Warn(id, description string, keysAndValues ...interface{}) {
 //
 // If LogLevel is set below LevelInfo, calling this method will yield no
 // side effects.
-func Info(id, description string, keysAndValues ...interface{}) {
-	keysAndValues = append([]interface{}{"golog_id", id}, keysAndValues...)
+func Info(id, description string, keysAndValues ...any) {
+	keysAndValues = append([]any{"golog_id", id}, keysAndValues...)
 	(DefaultLogger.(*logger)).info(1, description, keysAndValues...)
 }
 
@@ -173,8 +174,8 @@ func Info(id, description string, keysAndValues ...interface{}) {
 //
 // If LogLevel is set below LevelDebug, calling this method will yield no
 // side effects.
-func Debug(id, description string, keysAndValues ...interface{}) {
-	keysAndValues = append([]interface{}{"golog_id", id}, keysAndValues...)
+func Debug(id, description string, keysAndValues ...any) {
+	keysAndValues = append([]any{"golog_id", id}, keysAndValues...)
 	(DefaultLogger.(*logger)).debug(1, description, keysAndValues...)
 }
 
@@ -182,8 +183,8 @@ func Debug(id, description string, keysAndValues ...interface{}) {
 //
 // If LogLevel is set below LevelTrace, calling this method will yield no
 // side effects.
-func Trace(id, description string, keysAndValues ...interface{}) {
-	keysAndValues = append([]interface{}{"golog_id", id}, keysAndValues...)
+func Trace(id, description string, keysAndValues ...any) {
+	keysAndValues = append([]any{"golog_id", id}, keysAndValues...)
 	(DefaultLogger.(*logger)).trace(1, description, keysAndValues...)
 }
 
@@ -208,28 +209,28 @@ func SetOutput(w io.Writer) {
 	DefaultLogger.SetOutput(w)
 }
 
-// SetFlags changes the timestamp flags on the output of the default logger.
+// SetTimestampFlags changes the timestamp flags on the output of the default logger.
 func SetTimestampFlags(flags int) {
 	defaultFlags = flags
 	DefaultLogger.SetTimestampFlags(flags)
 }
 
 type Logger interface {
-	Fatal(description string, keysAndValues ...interface{})
-	Error(description string, keysAndValues ...interface{})
-	Warn(description string, keysAndValues ...interface{})
-	Info(description string, keysAndValues ...interface{})
-	Debug(description string, keysAndValues ...interface{})
-	Trace(description string, keysAndValues ...interface{})
+	Fatal(description string, keysAndValues ...any)
+	Error(description string, keysAndValues ...any)
+	Warn(description string, keysAndValues ...any)
+	Info(description string, keysAndValues ...any)
+	Debug(description string, keysAndValues ...any)
+	Trace(description string, keysAndValues ...any)
 
 	SetLevel(level LogLevel)
 	SetOutput(w io.Writer)
 	SetTimestampFlags(flags int)
-	SetStaticField(name string, value interface{})
+	SetStaticField(name string, value any)
 	SetStackTrace(trace bool)
 }
 
-// Logger config. Default/unset values for each attribute are safe.
+// Config - Logger config. Default/unset values for each attribute are safe.
 type Config struct {
 	Format LogFormat
 	ID     string
@@ -245,11 +246,11 @@ const (
 )
 
 // New creates a new logger instance.
-func New(conf Config, staticKeysAndValues ...interface{}) Logger {
+func New(conf Config, staticKeysAndValues ...any) Logger {
 	var prefix string
 	var flags int
 	var formatter formatLogEvent
-	staticArgs := make(map[string]string, 0)
+	staticArgs := make(map[string]string)
 
 	format := SanitizeFormat(conf.Format)
 	if format == JsonFormat {
@@ -264,14 +265,14 @@ func New(conf Config, staticKeysAndValues ...interface{}) Logger {
 			staticArgs["prefix"] = defaultPrefix
 		}
 	} else if format == KeyValueFormat {
-		formatter = formatLogEvent(formatLogEventAsKeyValue)
+		formatter = formatLogEventAsKeyValue
 	} else {
-		formatter = formatLogEvent(formatLogEventAsPlainText)
+		formatter = formatLogEventAsPlainText
 		prefix = defaultPrefix
 		flags = defaultFlags
 	}
 
-	// Set 'ID' config as a static field, but before reading the varargs suplied
+	// Set 'ID' config as a static field, but before reading the varargs supplied
 	// fields, so that they can override the config.
 	if conf.ID != "" {
 		staticArgs["golog_id"] = conf.ID
@@ -280,10 +281,10 @@ func New(conf Config, staticKeysAndValues ...interface{}) Logger {
 	if len(staticKeysAndValues)%2 == 1 {
 		// If there are an odd number of staticKeysAndValue, then there's probably one
 		// missing, which means we'd interpret a value as a key, which can be bad for
-		// logs-as-data, like metrics on staticKeys or elasticsearch. But, instead of
+		// logs-as-data, like metrics on staticKeys or Elasticsearch. But, instead of
 		// throwing the corrupt data out, serialize it into a string, which both
 		// keeps the info, and maintains key-value integrity.
-		staticKeysAndValues = []interface{}{"corruptStaticFields", flattenKeyValues(staticKeysAndValues)}
+		staticKeysAndValues = []any{"corruptStaticFields", flattenKeyValues(staticKeysAndValues)}
 	}
 
 	// Do this after handling prefix, so that individual loggers can override
@@ -320,14 +321,13 @@ func NewDefault() Logger {
 func SanitizeFormat(format LogFormat) LogFormat {
 	if format == PlainTextFormat || format == JsonFormat || format == KeyValueFormat {
 		return format
-	} else {
-		// Whether it's explicitly a DefaultFormat, or it's an unrecognized value,
-		// try to take from env var.
+	}
 
-		envFormat := os.Getenv("LOG_ENCODING")
-		if envFormat == string(JsonFormat) || envFormat == string(PlainTextFormat) || envFormat == string(KeyValueFormat) {
-			return LogFormat(envFormat)
-		}
+	// Whether it's explicitly a DefaultFormat, or it's an unrecognized value,
+	// try to take from env var.
+	envFormat := os.Getenv("LOG_ENCODING")
+	if envFormat == string(JsonFormat) || envFormat == string(PlainTextFormat) || envFormat == string(KeyValueFormat) {
+		return LogFormat(envFormat)
 	}
 
 	// Fall back to text
@@ -354,11 +354,11 @@ type logger struct {
 }
 
 // Fatal outputs an error message with an optional list of key/value pairs and exits
-func (s *logger) Fatal(description string, keysAndValues ...interface{}) {
+func (s *logger) Fatal(description string, keysAndValues ...any) {
 	s.fatal(1, description, keysAndValues...)
 }
 
-func (s *logger) fatal(depth int, description string, keysAndValues ...interface{}) {
+func (s *logger) fatal(depth int, description string, keysAndValues ...any) {
 	if s.level < LevelFatal {
 		return
 	}
@@ -367,11 +367,11 @@ func (s *logger) fatal(depth int, description string, keysAndValues ...interface
 }
 
 // Error outputs an error message with an optional list of key/value pairs.
-func (s *logger) Error(description string, keysAndValues ...interface{}) {
+func (s *logger) Error(description string, keysAndValues ...any) {
 	s.error(1, description, keysAndValues...)
 }
 
-func (s *logger) error(depth int, description string, keysAndValues ...interface{}) {
+func (s *logger) error(depth int, description string, keysAndValues ...any) {
 	if s.level < LevelError {
 		return
 	}
@@ -382,11 +382,11 @@ func (s *logger) error(depth int, description string, keysAndValues ...interface
 //
 // If LogLevel is set below LevelWarn, calling this method will yield no
 // side effects.
-func (s *logger) Warn(description string, keysAndValues ...interface{}) {
+func (s *logger) Warn(description string, keysAndValues ...any) {
 	s.warn(1, description, keysAndValues...)
 }
 
-func (s *logger) warn(depth int, description string, keysAndValues ...interface{}) {
+func (s *logger) warn(depth int, description string, keysAndValues ...any) {
 	if s.level < LevelWarn {
 		return
 	}
@@ -397,11 +397,11 @@ func (s *logger) warn(depth int, description string, keysAndValues ...interface{
 //
 // If LogLevel is set below LevelInfo, calling this method will yield no
 // side effects.
-func (s *logger) Info(description string, keysAndValues ...interface{}) {
+func (s *logger) Info(description string, keysAndValues ...any) {
 	s.info(1, description, keysAndValues...)
 }
 
-func (s *logger) info(depth int, description string, keysAndValues ...interface{}) {
+func (s *logger) info(depth int, description string, keysAndValues ...any) {
 	if s.level < LevelInfo {
 		return
 	}
@@ -412,11 +412,11 @@ func (s *logger) info(depth int, description string, keysAndValues ...interface{
 //
 // If LogLevel is set below LevelDebug, calling this method will yield no
 // side effects.
-func (s *logger) Debug(description string, keysAndValues ...interface{}) {
+func (s *logger) Debug(description string, keysAndValues ...any) {
 	s.debug(1, description, keysAndValues...)
 }
 
-func (s *logger) debug(depth int, description string, keysAndValues ...interface{}) {
+func (s *logger) debug(depth int, description string, keysAndValues ...any) {
 	if s.level < LevelDebug {
 		return
 	}
@@ -427,11 +427,11 @@ func (s *logger) debug(depth int, description string, keysAndValues ...interface
 //
 // If LogLevel is set below LevelTrace, calling this method will yield no
 // side effects.
-func (s *logger) Trace(description string, keysAndValues ...interface{}) {
+func (s *logger) Trace(description string, keysAndValues ...any) {
 	s.trace(1, description, keysAndValues...)
 }
 
-func (s *logger) trace(depth int, description string, keysAndValues ...interface{}) {
+func (s *logger) trace(depth int, description string, keysAndValues ...any) {
 	if s.level < LevelTrace {
 		return
 	}
@@ -440,23 +440,23 @@ func (s *logger) trace(depth int, description string, keysAndValues ...interface
 
 // Adding caller information
 // https://stackoverflow.com/questions/24809287/how-do-you-get-a-golang-program-to-print-the-line-number-of-the-error-it-just-ca
-func (s *logger) logMessage(depth int, level LogLevelName, description string, keysAndValues ...interface{}) {
+func (s *logger) logMessage(depth int, level LogLevelName, description string, keysAndValues ...any) {
 	// If there are an odd number of keysAndValue, then there's probably one
 	// missing, which means we'd interpret a value as a key, which can be bad for
-	// logs-as-data, like metrics on keys or elasticsearch. But, instead of
+	// logs-as-data, like metrics on keys or Elasticsearch. But, instead of
 	// throwing the corrupt data out, serialize it into a string, which both
 	// keeps the info, and maintains key-value integrity.
 	if len(keysAndValues)%2 == 1 {
 		// But, before checking for corrupt keys, remove golog_id, if present, cuz
-		// that's an auto-field, so don't let user's missuse of keysAndValues mess up
+		// that's an auto-field, so don't let user's misuse of keysAndValues mess up
 		// the ID, which they didn't do incorrectly.
 		if len(keysAndValues) >= 2 && keysAndValues[0] == "golog_id" {
-			keysAndValues = []interface{}{
+			keysAndValues = []any{
 				"golog_id", keysAndValues[1],
 				"corruptFields", flattenKeyValues(keysAndValues[2:]),
 			}
 		} else {
-			keysAndValues = []interface{}{"corruptFields", flattenKeyValues(keysAndValues)}
+			keysAndValues = []any{"corruptFields", flattenKeyValues(keysAndValues)}
 		}
 	}
 
@@ -486,14 +486,14 @@ func (s *logger) SetOutput(w io.Writer) {
 	s.l = log.New(w, s.prefix, s.flags)
 }
 
-// SetFlags changes the timestamp flags on the output of the logger.
+// SetTimestampFlags changes the timestamp flags on the output of the logger.
 func (s *logger) SetTimestampFlags(flags int) {
 	s.flags = flags
 	s.l.SetFlags(flags)
 }
 
-// Add a key/value field to every log line from this logger.
-func (s *logger) SetStaticField(name string, value interface{}) {
+// SetStaticField Add a key/value field to every log line from this logger.
+func (s *logger) SetStaticField(name string, value any) {
 	s.staticArgs[name] = fmt.Sprintf("%v", value)
 }
 
@@ -502,12 +502,12 @@ type formatLogEvent func(
 	level LogLevelName,
 	description string,
 	staticFields map[string]string,
-	extraFieldKeysAndValues ...interface{},
+	extraFieldKeysAndValues ...any,
 ) string
 
 // Format is "SEVERITY | Description [| k1='v1' k2='v2' k3=]"
 // with key/value pairs being optional, depending on whether args are provided
-func formatLogEventAsPlainText(flags int, level LogLevelName, description string, staticFields map[string]string, args ...interface{}) string {
+func formatLogEventAsPlainText(flags int, level LogLevelName, description string, staticFields map[string]string, args ...any) string {
 	// A full log statement is <id> | <severity> | <description> | <keys and values>
 	items := make([]string, 0, 8)
 
@@ -533,7 +533,7 @@ func formatLogEventAsPlainText(flags int, level LogLevelName, description string
 			}
 
 			if !existsInArgs {
-				args = append([]interface{}{key, value}, args...)
+				args = append([]any{key, value}, args...)
 			}
 		}
 	}
@@ -561,9 +561,9 @@ func formatLogEventAsPlainText(flags int, level LogLevelName, description string
 	return strings.Join(items, " | ")
 }
 
-func formatLogEventAsKeyValue(flags int, level LogLevelName, description string, staticFields map[string]string, args ...interface{}) string {
+func formatLogEventAsKeyValue(flags int, level LogLevelName, description string, staticFields map[string]string, args ...any) string {
 	// Example output
-	// level='INFO' channel='LogID' message='Not all those who wander are lost.' hello='world' foo='bar' file='logging_test.go' line_number='1022'"
+	// level='INFO' channel='LogID' message='Not all those who wander are lost.' hello='world' foo='bar' file='logging_test.go' line_number='1022'
 	items := make([]string, 0, 8)
 
 	// If there are flags, go's logger will prefix with stuff, so add an empty
@@ -588,7 +588,7 @@ func formatLogEventAsKeyValue(flags int, level LogLevelName, description string,
 			}
 
 			if !existsInArgs {
-				args = append([]interface{}{key, value}, args...)
+				args = append([]any{key, value}, args...)
 			}
 		}
 	}
@@ -616,7 +616,7 @@ func formatLogEventAsKeyValue(flags int, level LogLevelName, description string,
 		items = append(items, expandKeyValuePairs(args))
 	}
 
-	// Use the aleady formatted and parsed items slice above to create a key_value specific log line
+	// Use the already formatted and parsed items slice above to create a key_value specific log line
 	// Severity, LogID, and a Message are always required and present and always in this order
 	itemsNew := make([]string, len(items))
 	for i := range items {
@@ -638,7 +638,7 @@ func formatLogEventAsKeyValue(flags int, level LogLevelName, description string,
 
 // expandKeyValuePairs converts a list of arguments into a string with the
 // format "k='v' foo='bar' bar=".
-func expandKeyValuePairs(keyValuePairs []interface{}) string {
+func expandKeyValuePairs(keyValuePairs []any) string {
 	kvPairs := make([]string, 0, len(keyValuePairs)/2)
 
 	// Just ignore the last dangling kv if odd #, cuz bug.
@@ -651,7 +651,7 @@ func expandKeyValuePairs(keyValuePairs []interface{}) string {
 	return strings.Join(kvPairs, " ")
 }
 
-func formatLogEventAsJson(flags int, level LogLevelName, msg string, staticFields map[string]string, extraFields ...interface{}) string {
+func formatLogEventAsJson(_ int, level LogLevelName, msg string, staticFields map[string]string, extraFields ...any) string {
 	entry := jsonLogEntry{
 		Timestamp: time.Now().String(),
 		Level:     level,
@@ -688,7 +688,7 @@ type jsonLogEntry struct {
 	Fields    map[string]string `json:"fields,omitempty"`
 }
 
-func flattenKeyValues(keysAndValues []interface{}) string {
+func flattenKeyValues(keysAndValues []any) string {
 	stringKVs := make([]string, len(keysAndValues))
 	for i, kv := range keysAndValues {
 		stringKVs[i] = fmt.Sprintf("%v", kv)
