@@ -42,6 +42,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -340,6 +341,7 @@ func SanitizeFormat(format LogFormat) LogFormat {
 // with inferior severity will yield no effect) and wraps the underlying
 // logger, which is a standard lib's *log.Logger instance.
 type logger struct {
+	mu         sync.RWMutex
 	depth      int
 	stackTrace bool
 
@@ -359,7 +361,10 @@ func (s *logger) Fatal(description string, keysAndValues ...any) {
 }
 
 func (s *logger) fatal(depth int, description string, keysAndValues ...any) {
-	if s.level < LevelFatal {
+	s.mu.RLock()
+	below := s.level < LevelFatal
+	s.mu.RUnlock()
+	if below {
 		return
 	}
 	s.logMessage(depth+1, LevelFatalName, description, keysAndValues...)
@@ -372,7 +377,10 @@ func (s *logger) Error(description string, keysAndValues ...any) {
 }
 
 func (s *logger) error(depth int, description string, keysAndValues ...any) {
-	if s.level < LevelError {
+	s.mu.RLock()
+	below := s.level < LevelError
+	s.mu.RUnlock()
+	if below {
 		return
 	}
 	s.logMessage(depth+1, LevelErrorName, description, keysAndValues...)
@@ -387,7 +395,10 @@ func (s *logger) Warn(description string, keysAndValues ...any) {
 }
 
 func (s *logger) warn(depth int, description string, keysAndValues ...any) {
-	if s.level < LevelWarn {
+	s.mu.RLock()
+	below := s.level < LevelWarn
+	s.mu.RUnlock()
+	if below {
 		return
 	}
 	s.logMessage(depth+1, LevelWarnName, description, keysAndValues...)
@@ -402,7 +413,10 @@ func (s *logger) Info(description string, keysAndValues ...any) {
 }
 
 func (s *logger) info(depth int, description string, keysAndValues ...any) {
-	if s.level < LevelInfo {
+	s.mu.RLock()
+	below := s.level < LevelInfo
+	s.mu.RUnlock()
+	if below {
 		return
 	}
 	s.logMessage(depth+1, LevelInfoName, description, keysAndValues...)
@@ -417,7 +431,10 @@ func (s *logger) Debug(description string, keysAndValues ...any) {
 }
 
 func (s *logger) debug(depth int, description string, keysAndValues ...any) {
-	if s.level < LevelDebug {
+	s.mu.RLock()
+	below := s.level < LevelDebug
+	s.mu.RUnlock()
+	if below {
 		return
 	}
 	s.logMessage(depth+1, LevelDebugName, description, keysAndValues...)
@@ -432,7 +449,10 @@ func (s *logger) Trace(description string, keysAndValues ...any) {
 }
 
 func (s *logger) trace(depth int, description string, keysAndValues ...any) {
-	if s.level < LevelTrace {
+	s.mu.RLock()
+	below := s.level < LevelTrace
+	s.mu.RUnlock()
+	if below {
 		return
 	}
 	s.logMessage(depth+1, LevelTraceName, description, keysAndValues...)
@@ -467,34 +487,46 @@ func (s *logger) logMessage(depth int, level LogLevelName, description string, k
 		}
 	}
 
+	s.mu.RLock()
 	msg := s.formatLogEvent(s.flags, level, description, s.staticArgs, keysAndValues...)
 	s.l.Println(msg)
+	s.mu.RUnlock()
 }
 
 func (s *logger) SetLevel(level LogLevel) {
+	s.mu.Lock()
 	s.level = level
+	s.mu.Unlock()
 }
 
 func (s *logger) SetStackTrace(trace bool) {
+	s.mu.Lock()
 	s.stackTrace = trace
+	s.mu.Unlock()
 }
 
 // SetOutput sets the output destination for the logger.
 //
 // Useful to change where the log stream ends up being written to.
 func (s *logger) SetOutput(w io.Writer) {
+	s.mu.Lock()
 	s.l = log.New(w, s.prefix, s.flags)
+	s.mu.Unlock()
 }
 
 // SetTimestampFlags changes the timestamp flags on the output of the logger.
 func (s *logger) SetTimestampFlags(flags int) {
+	s.mu.Lock()
 	s.flags = flags
 	s.l.SetFlags(flags)
+	s.mu.Unlock()
 }
 
 // SetStaticField Add a key/value field to every log line from this logger.
 func (s *logger) SetStaticField(name string, value any) {
+	s.mu.Lock()
 	s.staticArgs[name] = fmt.Sprintf("%v", value)
+	s.mu.Unlock()
 }
 
 type formatLogEvent func(
